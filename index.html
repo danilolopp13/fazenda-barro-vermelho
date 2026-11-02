@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#2c4f86">
+<title>Manejo de Cria</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" sizes="192x192" href="icone-192.png">
+<link rel="apple-touch-icon" href="icone-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Fazenda">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Alfa+Slab+One&family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.css">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/shpjs@4.0.4/dist/shp.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@tmcw/togeojson@5.8.1/dist/togeojson.umd.js"></script>
+<style>
+:root{
+  --cal:#f8f7f2; --papel:#ffffff; --tinta:#2a231b; --tinta2:#62584b; --linha:#d6cfbf;
+  --anil:#2c4f86; --anil2:#1d3762; --ipe:#f2b705; --ipe-claro:#fff3c7; --ipe2:#b97f00;
+  --pasto:#3f7d2c; --pasto-claro:#e4f0da; --terra:#a4421f; --terra-claro:#f6e2d8; --madeira:#6b4526;
+  /* nomes antigos usados nas telas */
+  --verde:var(--pasto); --verde2:var(--pasto-claro); --verm:#b3341c; --amar:var(--ipe2); --ok:var(--pasto); --mute:var(--tinta2); --line:var(--linha); --bg:var(--cal); --azul:var(--anil); --ink:var(--tinta); --card:var(--papel);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--cal);color:var(--tinta);font-family:'Atkinson Hyperlegible',system-ui,sans-serif;font-size:18px;line-height:1.45}
+h1,h2,h3{font-family:'Alfa Slab One',Georgia,serif;font-weight:400;margin:0;letter-spacing:.2px;line-height:1.15}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--ipe);outline-offset:2px}
+.wrap{max-width:640px;margin:0 auto;padding:16px 14px 130px}
+
+/* ---- cena do topo (só na tela Fazenda) ---- */
+.cena{position:relative;border-bottom:3px solid var(--tinta);overflow:hidden;background:#d5ecf8}
+.cena svg.paisagem{display:block;width:100%;height:250px}
+.cena .saud{position:absolute;left:16px;top:60px;right:16px;color:var(--tinta)}
+.cena.noite .saud{color:#fff}
+.cena .saud h1{font-size:28px;text-shadow:0 1px 0 rgba(255,255,255,.35)}
+.cena .saud p{margin:4px 0 0;font-size:16px;font-weight:700;opacity:.85}
+.cena .clima{position:absolute;left:14px;top:14px;background:rgba(255,255,255,.92);border:2px solid var(--tinta);border-radius:999px;padding:5px 12px;font-weight:700;font-size:16px;display:flex;gap:6px;align-items:center}
+.cena .clima small{font-weight:400;font-size:13px}
+.cena .sol{transform-origin:center;animation:nascer 1.6s ease-out both}
+@keyframes nascer{from{transform:translateY(40px);opacity:0}to{transform:none;opacity:1}}
+
+/* ---- cabeçalho compacto (demais telas) ---- */
+header.top{background:var(--anil);color:#fff;padding:14px 16px 12px;position:sticky;top:0;z-index:1000;border-bottom:4px solid var(--ipe)}
+header.top .in{max-width:640px;margin:0 auto}
+header.top h1{font-size:25px}
+header.top small{opacity:.85;font-size:14px;display:block}
+
+.banner{background:var(--ipe-claro);border:2px dashed var(--ipe2);color:#5a4100;border-radius:12px;padding:10px 12px;font-size:15px;margin-bottom:14px}
+
+/* ---- cartões: papel com contorno de tinta e sombra seca ---- */
+.card{background:var(--papel);border:2px solid var(--tinta);border-radius:16px;padding:16px;margin-bottom:18px;box-shadow:3px 3px 0 var(--tinta)}
+.card h2{font-size:23px;margin-bottom:12px}
+.card h2 .badge{vertical-align:middle;font-family:'Atkinson Hyperlegible',sans-serif}
+.sec-t{font-family:'Alfa Slab One',serif;font-size:20px;color:var(--tinta);margin:24px 2px 10px}
+
+.kpis{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;margin-bottom:12px}
+.kpi{background:#fff;border:2px solid var(--tinta);border-top:7px solid var(--pasto);border-radius:12px;padding:10px 12px}
+.kpi .l{font-size:14px;color:var(--tinta2);line-height:1.25;font-weight:700}
+.kpi .v{font-family:'Alfa Slab One',serif;font-size:clamp(19px,5.6vw,25px);overflow-wrap:anywhere;line-height:1.15;margin-top:4px}
+.kpi .s{font-size:13px;color:var(--tinta2);margin-top:2px}
+.kpi.g{border-top-color:var(--pasto)} .kpi.a{border-top-color:var(--ipe)} .kpi.r{border-top-color:var(--verm)} .kpi.n{border-top-color:#a9a293}
+
+.badge{display:inline-block;font-size:13px;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap;border:1.5px solid currentColor}
+.badge.g{background:var(--pasto-claro);color:#285a1a}.badge.a{background:var(--ipe-claro);color:#7a5300}.badge.r{background:#f8dcd5;color:#8f2410}.badge.n{background:#eeebe3;color:#5c554a}
+
+table{width:100%;border-collapse:collapse;font-size:16px}
+th,td{padding:9px 4px;text-align:right;border-bottom:1.5px solid var(--linha)}
+th:first-child,td:first-child{text-align:left}
+th{font-size:14px;color:var(--tinta2);font-weight:700}
+td.neg{color:var(--verm);font-weight:700}
+
+/* ---- barra de baixo: a barra azul da parede caiada ---- */
+nav.bot{position:fixed;bottom:0;left:0;right:0;background:var(--anil);border-top:4px solid var(--tinta);padding:6px 6px calc(8px + env(safe-area-inset-bottom));z-index:1000}
+nav.bot .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:1fr 1fr 1.2fr 1fr 1fr;align-items:end}
+nav.bot button{background:none;border:0;padding:6px 0 2px;font-size:14px;font-weight:700;color:#dfe7f5;display:flex;flex-direction:column;align-items:center;gap:2px}
+nav.bot button .i{font-size:26px;line-height:1}
+nav.bot button.on{color:var(--ipe)}
+nav.bot button.on .i{transform:translateY(-2px)}
+nav.bot .anotar{color:#fff}
+nav.bot .anotar .mais{width:70px;height:70px;margin-top:-34px;border-radius:50%;background:var(--ipe);border:3px solid var(--tinta);box-shadow:3px 3px 0 var(--tinta);display:flex;align-items:center;justify-content:center;font-family:'Alfa Slab One',serif;font-size:42px;color:var(--tinta);line-height:1}
+nav.bot .anotar.on{color:var(--ipe)}
+
+/* ---- tela Anotar ---- */
+.grid-ev{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ev{background:#fff;border:2px solid var(--tinta);border-radius:16px;box-shadow:3px 3px 0 var(--tinta);padding:14px 10px 12px;text-align:center;min-height:132px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px}
+.ev:active,.btn:active,.ck:active{transform:translate(2px,2px);box-shadow:1px 1px 0 var(--tinta)}
+.ev .i{width:58px;height:58px;border-radius:50%;border:2px solid var(--tinta);background:color-mix(in srgb, var(--c) 22%, white);display:flex;align-items:center;justify-content:center;font-size:29px}
+.ev .t{font-weight:700;font-size:18px;line-height:1.2}
+.ev .d{font-size:14px;color:var(--tinta2);line-height:1.2}
+
+/* ---- formulários grandes ---- */
+label.f{display:block;margin-bottom:14px}
+label.f>span{display:block;font-size:16px;color:var(--tinta);margin-bottom:5px;font-weight:700}
+label.f>span em{font-weight:400;color:var(--tinta2)}
+input[type=text],input[type=date],input[type=number],input[type=email],input[type=password],select,textarea{width:100%;padding:13px 12px;border:2px solid #b9b09e;border-radius:12px;background:#fff;font-size:18px;min-height:52px}
+input:focus,select:focus,textarea:focus{border-color:var(--tinta);outline:3px solid var(--ipe);outline-offset:0}
+textarea{min-height:70px;resize:vertical}
+.step{display:flex;align-items:stretch;border:2px solid var(--tinta);border-radius:14px;overflow:hidden;background:#fff}
+.step button{width:52px;flex:none;border:0;background:var(--pasto-claro);font-size:30px;color:var(--pasto);font-weight:700}
+.step input{border:0!important;border-radius:0!important;padding:10px 0!important;text-align:center;font-size:26px!important;font-weight:700;flex:1;min-width:0;outline:0!important}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.btn{display:block;width:100%;padding:14px;min-height:56px;border:2px solid var(--tinta);border-radius:14px;background:var(--pasto);color:#fff;font-weight:700;font-size:19px;box-shadow:3px 3px 0 var(--tinta)}
+.btn.sec{background:#fff;color:var(--tinta)}
+.btn.sm{padding:10px 12px;font-size:16px;min-height:48px}
+.btn.in{display:inline-block;width:auto}
+.btn.del{background:#fff;color:var(--verm)}
+.btn:disabled{opacity:.45}
+.lnk{background:none;border:0;color:var(--anil);font-weight:700;padding:6px 0;font-size:16px;text-decoration:underline;text-underline-offset:3px}
+.hint{font-size:15px;color:var(--tinta2);margin-top:5px}
+.warn{font-size:15px;color:var(--verm);margin-top:5px;font-weight:700}
+.muted{color:var(--tinta2);font-size:16px}
+.empty{text-align:center;color:var(--tinta2);padding:18px 6px;font-size:16px}
+
+.item{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-bottom:1.5px solid var(--linha)}
+.item:last-child{border-bottom:0}
+.item .ic{width:42px;height:42px;border-radius:50%;border:2px solid var(--tinta);display:flex;align-items:center;justify-content:center;font-size:20px;flex:none}
+.item .tx{flex:1;min-width:0}.item .tx b{display:block}.item .tx small{color:var(--tinta2);font-size:14px}
+.item .x{background:none;border:0;color:#9b9384;font-size:22px;padding:4px 8px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding-bottom:4px;margin-bottom:10px}
+.chips select{width:auto;padding:10px;font-size:16px}
+.toast{position:fixed;left:16px;right:16px;margin:0 auto;max-width:560px;bottom:112px;justify-content:space-between;background:var(--tinta);color:#fff;padding:12px 16px;border-radius:14px;font-size:16px;display:flex;gap:16px;align-items:center;z-index:3000;max-width:92vw;box-shadow:3px 3px 0 var(--ipe)}
+.toast span{flex:1}
+.toast button{background:none;border:0;color:var(--ipe);font-weight:700;font-size:16px}
+.modal{position:fixed;inset:0;background:rgba(30,25,18,.5);display:flex;align-items:flex-end;justify-content:center;z-index:2000}
+.modal .box{background:#fff;border:3px solid var(--tinta);border-bottom:0;border-radius:20px 20px 0 0;padding:20px;width:100%;max-width:640px;max-height:92vh;overflow:auto}
+.modal .box h2{font-size:23px;margin-bottom:14px}
+.modal .acts{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px}
+.login{max-width:400px;margin:60px auto;padding:0 18px}
+.login h1{font-size:36px;color:var(--pasto);margin-bottom:6px}
+ol.onb{margin:6px 0 0;padding-left:24px;line-height:1.75;font-size:17px}
+.tag{font-size:13px;background:var(--pasto-claro);color:#285a1a;padding:2px 8px;border-radius:12px;font-weight:700;border:1.5px solid currentColor;font-family:'Atkinson Hyperlegible',sans-serif}
+.gcats{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+.gc input{position:absolute;opacity:0;pointer-events:none}
+.gc span{display:block;padding:12px 10px;border:2px solid #b9b09e;border-radius:12px;background:#fff;font-size:16px;font-weight:700}
+.gc input:checked+span{border-color:var(--tinta);background:var(--ipe-claro);box-shadow:2px 2px 0 var(--tinta)}
+.gc input:focus-visible+span{outline:3px solid var(--ipe)}
+.bar{height:10px;border-radius:6px;background:var(--ipe);margin-top:5px;border:1.5px solid var(--tinta)}
+.gl{padding:9px 0;border-bottom:1.5px solid var(--linha);font-size:16px}.gl:last-child{border-bottom:0}
+.gl .h{display:flex;justify-content:space-between;gap:8px}
+.chk{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px}
+.chk label{display:flex;align-items:center;gap:6px;border:2px solid #b9b09e;border-radius:12px;padding:9px 11px;font-size:16px;background:#fff}
+.sn{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:10px 0;border-top:1.5px solid var(--linha);font-size:16px}
+.res{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px;text-align:center}
+.res div{background:var(--cal);border:2px solid var(--tinta);border-radius:12px;padding:9px 4px}
+.res b{display:block;font-family:'Alfa Slab One',serif;font-size:clamp(14px,4.2vw,18px);overflow-wrap:anywhere;font-weight:400}
+.res small{font-size:14px;color:var(--tinta2);font-weight:700}
+.alerta{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1.5px dashed #d9c27a;font-size:16px}
+.alerta:last-child{border-bottom:0}
+.alerta .dot{width:14px;height:14px;border-radius:50%;margin-top:4px;flex:none;border:2px solid var(--tinta)}
+
+/* ---- lida do dia ---- */
+.tk{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1.5px solid var(--linha)}.tk:last-child{border-bottom:0}
+.tk .ck{width:54px;height:54px;border-radius:14px;border:2.5px solid var(--tinta);background:#fff;font-size:28px;color:#fff;flex:none;font-weight:700;box-shadow:2px 2px 0 var(--tinta)}
+.tk.feito .ck{background:var(--pasto)}.tk.feito .tx b{text-decoration:line-through;text-decoration-thickness:2px;opacity:.6}
+.tk .tx{flex:1;min-width:0}.tk .tx b{display:block;font-size:18px}.tk .tx small{color:var(--tinta2);font-size:14px}
+.tk .prob{background:none;border:2px solid var(--verm);color:var(--verm);border-radius:10px;padding:6px 8px;font-size:14px;font-weight:700}
+.trilha{position:relative;height:26px;margin:4px 0 12px;border-bottom:3px solid var(--madeira)}
+.trilha .poste{position:absolute;bottom:-3px;width:5px;height:22px;background:var(--madeira);border-radius:2px 2px 0 0}
+.trilha .ripa{position:absolute;left:0;right:0;bottom:12px;height:3px;background:var(--madeira);opacity:.55}
+.trilha .anda{position:absolute;bottom:0;width:38px;transition:left .8s ease;color:var(--tinta)}
+.trilha .curral{position:absolute;right:-2px;bottom:-1px;font-size:22px}
+
+/* ---- boiada ---- */
+.curral-g{display:grid;grid-template-columns:repeat(5,1fr);gap:6px;text-align:center;align-items:end}
+.curral-g .cur svg{display:block;margin:0 auto 4px;color:var(--tinta);height:auto}
+.curral-g b{display:block;font-family:'Alfa Slab One',serif;font-size:25px;font-weight:400;line-height:1.1}
+.curral-g span{font-size:13px;color:var(--tinta2);font-weight:700;line-height:1.15;display:block}
+.totalb{margin:14px 0 0;padding-top:10px;border-top:2px dashed var(--linha);font-size:17px}
+
+/* ---- régua dos índices ---- */
+.regua{padding:10px 0;border-bottom:1.5px solid var(--linha)}.regua:last-child{border-bottom:0}
+.regua .q{font-size:17px}.regua .q b{font-family:'Alfa Slab One',serif;font-weight:400;font-size:20px}
+.regua .trilho{height:12px;border:2px solid var(--tinta);border-radius:8px;background:#efece4;margin-top:6px;overflow:hidden}
+.regua .trilho i{display:block;height:100%}
+.regua small{color:var(--tinta2);font-size:14px}
+
+/* ---- fivela ---- */
+.fivela{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:center}
+.fivela svg{width:150px;height:auto;display:block}
+.fivela .nivel{font-family:'Alfa Slab One',serif;font-size:22px;line-height:1.1}
+.pilar{display:grid;grid-template-columns:1fr 46px;gap:2px 8px;font-size:14px;align-items:center;margin-top:5px}
+.pilar .tr{grid-column:1/-1;height:8px;border-radius:5px;background:#efece4;border:1.5px solid var(--tinta);overflow:hidden}
+.pilar .tr i{display:block;height:100%;background:var(--pasto)}
+.subir{margin:14px 0 0;padding:12px;background:var(--ipe-claro);border:2px dashed var(--ipe2);border-radius:12px;font-size:16px}
+.subir li{margin:4px 0}
+
+/* ---- prêmios ---- */
+.premios{display:grid;grid-template-columns:repeat(4,1fr);gap:10px 6px;text-align:center}
+.premio{background:none;border:0;padding:0;display:flex;flex-direction:column;align-items:center;gap:4px}
+.premio .m{width:62px;height:62px;border-radius:50%;border:3px solid var(--tinta);display:flex;align-items:center;justify-content:center;font-size:28px;background:var(--ipe);box-shadow:2px 2px 0 var(--tinta);position:relative}
+.premio .m:after{content:'';position:absolute;inset:4px;border-radius:50%;border:1.5px dashed rgba(42,35,27,.55)}
+.premio.bloq .m{background:#ebe7de;filter:grayscale(1);opacity:.55;box-shadow:none;border-style:dashed}
+.premio span{font-size:13px;font-weight:700;line-height:1.15}
+.premio.bloq span{color:var(--tinta2);font-weight:400}
+
+/* ---- previsão ---- */
+.prev{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;margin-bottom:12px}
+.prev div{border:2px solid var(--tinta);border-radius:12px;padding:6px 0;background:#fff;font-size:13px;line-height:1.3}
+.prev div.hj{background:var(--ipe-claro)}
+.prev b{display:block;font-size:14px}
+.prev .e{font-size:21px;display:block}
+.prev .mm{color:var(--anil);font-weight:700}
+
+/* ---- menu Mais ---- */
+.mi{display:flex;align-items:center;gap:14px;width:100%;text-align:left;background:#fff;border:2px solid var(--tinta);border-radius:16px;box-shadow:3px 3px 0 var(--tinta);padding:16px;margin-bottom:14px}
+.mi .ic{font-size:30px;width:56px;height:56px;border-radius:50%;border:2px solid var(--tinta);display:flex;align-items:center;justify-content:center;background:var(--ipe-claro);flex:none}
+.mi b{display:block;font-family:'Alfa Slab One',serif;font-weight:400;font-size:21px}
+.mi small{color:var(--tinta2);font-size:15px}
+
+/* ---- comemoração ---- */
+.festa{position:fixed;inset:0;z-index:2500;background:rgba(30,25,18,.55);display:flex;align-items:center;justify-content:center;padding:20px;overflow:hidden}
+.festa .quadro{position:relative;background:#fff;border:3px solid var(--tinta);border-radius:22px;box-shadow:5px 5px 0 var(--tinta);padding:26px 20px 20px;max-width:380px;width:100%;text-align:center;animation:surge .45s cubic-bezier(.2,1.4,.4,1) both}
+.festa .selo{width:110px;height:110px;margin:-82px auto 10px;border-radius:50%;border:3px solid var(--tinta);background:var(--ipe);display:flex;align-items:center;justify-content:center;font-size:56px;box-shadow:3px 3px 0 var(--tinta)}
+.festa .selo.premio-s{background:radial-gradient(circle at 35% 30%,#ffe98a,#e0a400 70%)}
+.festa h2{font-size:30px;margin-bottom:8px}
+.festa p{font-size:18px;margin:0 0 18px}
+.festa .flor{position:absolute;top:-20px;width:12px;height:12px;border-radius:50% 0 50% 0;background:var(--ipe);border:1px solid var(--ipe2);animation:cai linear forwards}
+@keyframes cai{to{transform:translateY(110vh) rotate(540deg)}}
+@keyframes surge{from{transform:scale(.6);opacity:0}to{transform:none;opacity:1}}
+
+#map{height:58vh;width:100%}
+.leaflet-tooltip.lbl{background:rgba(255,255,255,.9);border:0;box-shadow:none;font:700 12px 'Atkinson Hyperlegible',sans-serif;padding:2px 6px;text-align:center}
+.leaflet-tooltip.lbl:before{display:none}
+.drawbar{display:none;gap:8px;margin-top:10px}
+.drawbar.on{display:grid;grid-template-columns:1fr 1fr 1fr}
+.pin{font-size:24px;line-height:1;filter:drop-shadow(0 1px 2px rgba(0,0,0,.7))}
+
+@media (max-width:360px){ .ev{min-height:118px} .curral-g b{font-size:21px} .fivela{grid-template-columns:120px 1fr} .fivela svg{width:120px} }
+@media (prefers-reduced-motion:reduce){ *{animation:none!important;transition:none!important} }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <!-- Nelore de perfil, virado pra esquerda: cupim, barbela e orelha caída -->
+  <symbol id="boi" viewBox="0 0 64 42">
+    <g fill="currentColor">
+      <path d="M13 15 C14 11 18 10 22 10 L50 11 C58 11 61 15 61 21 C61 27 58 29 55 29 L20 29 C15 29 12 25 12 21 Z"/>
+      <ellipse cx="22" cy="10" rx="6.5" ry="5.5"/>
+      <path d="M15 14 L9 12 L6 22 C8 26 11 27 14 27 Z"/>
+      <path d="M11 9 C8 9 5 11 3 15 L1 21 C1 23 3 24 5 23 L7 21 C8 19 10 17 12 15 Z"/>
+      <path d="M9 11 L4 9 C3 10 3 12 4 13 L8 14 Z"/>
+      <path d="M11 8 L13 4 L14 8 Z"/>
+      <rect x="16" y="26" width="4" height="15" rx="1.5"/>
+      <rect x="22.5" y="26" width="4" height="15" rx="1.5"/>
+      <rect x="48" y="26" width="4" height="15" rx="1.5"/>
+      <rect x="54" y="25" width="4" height="16" rx="1.5"/>
+      <path d="M60 17 C64 21 63 28 62 33 L60.5 33 C61 27 61 22 58.5 19 Z"/>
+    </g>
+  </symbol>
+</svg>
+<div id="app"></div>
+<script type="module">
+/* =========================================================
+   CONFIGURAÇÃO DO FIREBASE
+   Cole aqui o firebaseConfig do seu projeto (Console Firebase >
+   Configurações do projeto > Seus apps > Web).
+   Enquanto estiver com "COLE_AQUI", o app roda em MODO TESTE,
+   guardando os dados só neste aparelho.
+   ========================================================= */
+const firebaseConfig = {
+  apiKey: "AIzaSyBB_H_jYoxtk-AmGsfqWg03OBtNjl3YG0E",
+  authDomain: "fazenda-barro-vermelho-8d3d6.firebaseapp.com",
+  projectId: "fazenda-barro-vermelho-8d3d6",
+  storageBucket: "fazenda-barro-vermelho-8d3d6.firebasestorage.app",
+  messagingSenderId: "895057463400",
+  appId: "1:895057463400:web:4ca64fefcaa4fd2bb713dd"
+};
+
+const MODO_TESTE = !firebaseConfig.apiKey || firebaseConfig.apiKey.includes('COLE');
+const FB = 'https://www.gstatic.com/firebasejs/10.12.2/';
+
+/* ---------- constantes ---------- */
+const CATS = {vaca:'Vacas', novilha:'Novilhas', touro:'Touros', bezerro:'Bezerros ao pé', recria:'Recria (desmamados)'};
+const CATS_C = {vaca:'vacas', novilha:'novilhas', touro:'touros', bezerro:'bezerros', recria:'recria'};
+const CAT_K = Object.keys(CATS);
+const TIPOS_LOTE = {monta:'Monta (matrizes + touros)', novilhas:'Novilhas', recria:'Recria', touros:'Só touros', outros:'Outros'};
+const EV = {
+  parto:{n:'Nasceu bezerro', i:'🐮', c:'#3f7d2c', d:'Machos, fêmeas e natimortos'},
+  morte:{n:'Morreu', i:'🕊️', c:'#b3341c', d:'Bezerro, vaca, touro…'},
+  desmama:{n:'Desmamou', i:'🌾', c:'#a4421f', d:'Bezerros que saíram do pé'},
+  toque:{n:'Toque', i:'🩺', c:'#2c4f86', d:'Prenhas e vazias'},
+  sanitario:{n:'Vacina e remédio', i:'💉', c:'#2c4f86', d:'E a declaração de rebanho'},
+  saida:{n:'Vendeu / saiu', i:'🚚', c:'#6b4526', d:'Venda, descarte, consumo'},
+  transferencia:{n:'Mudou de lote', i:'🔀', c:'#6b4526', d:'Ou mudou de categoria'},
+  entrada:{n:'Comprou / chegou', i:'🐂', c:'#3f7d2c', d:'Gado que entrou'},
+  contagem:{n:'Contei no curral', i:'📋', c:'#62584b', d:'Acerta o saldo do lote'},
+  gasto:{n:'Gastei', i:'💰', c:'#b97f00', d:'Sal, ração, diarista…'},
+  chuva:{n:'Choveu', i:'🌧️', c:'#2c4f86', d:'Milímetros do pluviômetro'},
+  tarefa:{n:'Lida', i:'✅', c:'#3f7d2c', d:'', oculto:true}
+};
+const BENF = {cerca:{n:'Cerca', i:'〰️'}, cocho:{n:'Cocho', i:'🧂'}, bebedouro:{n:'Bebedouro', i:'💧'}, represa:{n:'Represa / aguada', i:'🌊'},
+  curral:{n:'Curral', i:'🔲'}, porteira:{n:'Porteira', i:'🚪'}, sede:{n:'Sede / casa', i:'🏠'}, outro:{n:'Outro', i:'📌'}};
+const FREQS = {1:'Todo dia', 2:'A cada 2 dias', 3:'A cada 3 dias', 7:'Toda semana', 15:'A cada 15 dias', 30:'Todo mês'};
+/* sugestões de tarefas — frequências editáveis em Cadastros */
+const TAREFAS_SUG = [{nome:'Conferir água / bebedouros', freq:1}, {nome:'Ronda nas vacas paridas e bezerros', freq:1}, {nome:'Conferir cocho de sal', freq:2}, {nome:'Conferir cercas', freq:7}];
+const GASTOS = {
+  sal:{n:'Sal', i:'🧂', u:['sacos','kg']},
+  racao:{n:'Ração', i:'🌽', u:['sacos','kg']},
+  remedio:{n:'Remédios', i:'💊', u:['unidades','frascos','doses']},
+  arame:{n:'Arame', i:'🪢', u:['rolos','metros']},
+  diarista:{n:'Funcionário diarista', i:'👷', u:['diárias']},
+  combustivel:{n:'Combustível', i:'⛽', u:['litros']}
+};
+const CAUSAS = ['Parto difícil','Fraqueza / não mamou','Doença','Cobra','Raio','Atolamento','Predador','Desconhecida','Outra'];
+const MOT_SAI = ['Venda','Descarte','Consumo','Doação','Outro'];
+const MOT_ENT = ['Compra','Vinda de outra fazenda','Outro'];
+const MESES = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+/* Unidade animal (UA = 450 kg de peso vivo) — referência ajustável em Cadastros */
+/* Localização da sede informada pelo Danilo (02/11/2026) — o mapa abre aqui */
+const FAZENDA_CENTRO = [-14.8592528, -49.8924713];
+const UA_PADRAO = {vaca:1, novilha:0.7, touro:1.3, bezerro:0.25, recria:0.45};
+/* Calendário sanitário de Goiás (Agrodefesa, 2026) */
+const PRESET_GO = [
+  {preset:'go-brucelose', nome:'Brucelose (B19 ou RB51)', alvo:'cats', cats:['bezerro'], modo:'intervalo', dias:120, obrig:true,
+   nota:'Obrigatória em GO para todas as fêmeas de 3 a 8 meses. Aplicada por veterinário cadastrado, que lança o atestado no Sidago. Repetir a cada 4 meses pega todas as bezerras dentro da faixa de idade.'},
+  {preset:'go-declaracao', nome:'Declaração de rebanho (Sidago)', alvo:'fazenda', cats:[], modo:'meses', meses:[5,11], obrig:true,
+   nota:'Obrigatória em GO em duas etapas: maio e novembro. Sem a declaração em dia o Sidago não emite GTA (exceto para abate).'},
+  {preset:'go-raiva', nome:'Raiva', alvo:'cats', cats:['vaca','novilha','touro','bezerro','recria'], modo:'intervalo', dias:365, obrig:false,
+   nota:'Não é mais obrigatória em GO (IN 01/2025), mas a Agrodefesa recomenda a vacinação preventiva.'}
+];
+
+/* ---------- utilidades ---------- */
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const N = v => { const n = parseFloat(String(v ?? '').replace(',', '.')); return isFinite(n) ? n : 0; };
+const moeda = v => { let t = String(v ?? '').replace(/[^\d,.-]/g, ''); if (t.includes(',')) t = t.replace(/\./g, '').replace(',', '.'); const n = parseFloat(t); return isFinite(n) ? n : 0; };
+const fmtN = (n, d=0) => (n || 0).toLocaleString('pt-BR', {minimumFractionDigits:d, maximumFractionDigits:d});
+const fmtR = v => (v || 0).toLocaleString('pt-BR', {style:'currency', currency:'BRL'});
+const fmtP = x => (x == null || !isFinite(x)) ? '—' : (x*100).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1}) + '%';
+const fmtD = d => d ? d.split('-').reverse().join('/') : '';
+const fmtMes = d => d ? MESES[+d.slice(5,7)-1] + '/' + d.slice(0,4) : '';
+const isoDia = dt => { const d = new Date(dt); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0,10); };
+const hoje = () => isoDia(new Date());
+const diasAtras = n => isoDia(Date.now() - n*864e5);
+const somaDias = (d, n) => isoDia(new Date(d + 'T12:00:00').getTime() + n*864e5);
+const difDias = (a, b) => Math.round((new Date(b+'T12:00:00') - new Date(a+'T12:00:00'))/864e5);
+const fimMes = d => { const [y,m] = d.split('-').map(Number); return isoDia(new Date(y, m, 0, 12)); };
+const pad = n => String(n).padStart(2,'0');
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2,8);
+const cfg = () => ({uaHa:1, kgSaco:25, ...S.config, ua:{...UA_PADRAO, ...(S.config.ua || {})}});
+const ultimos12 = () => { const out = [], d = new Date(); for (let i = 11; i >= 0; i--){ const x = new Date(d.getFullYear(), d.getMonth()-i, 1); out.push(`${x.getFullYear()}-${pad(x.getMonth()+1)}`); } return out; };
+
+/* área geodésica em hectares de um Polygon/MultiPolygon GeoJSON */
+/* projeção cilíndrica de área igual no elipsoide WGS84/SIRGAS 2000: área exata para polígonos de fazenda */
+const ELA = 6378137, ELE = Math.sqrt(0.00669438002290);
+const qLat = f => { const s = Math.sin(f), es = ELE*s; return (1-ELE*ELE)*(s/(1-es*es) - Math.log((1-es)/(1+es))/(2*ELE)); };
+function areaRing(c){ const r = Math.PI/180; let a = 0; for (let i = 0; i < c.length-1; i++){ const [x1,y1] = c[i], [x2,y2] = c[i+1]; a += (x1*r)*(ELA*qLat(y2*r)/2) - (x2*r)*(ELA*qLat(y1*r)/2); } return Math.abs(a*ELA/2); }
+function areaHa(g){
+  if (!g) return 0;
+  const poly = p => areaRing(p[0]) - p.slice(1).reduce((s, h) => s + areaRing(h), 0);
+  const m2 = g.type === 'Polygon' ? poly(g.coordinates) : g.type === 'MultiPolygon' ? g.coordinates.reduce((s,p) => s + poly(p), 0) : 0;
+  return m2 / 1e4;
+}
+const parseGeo = s => { try { return typeof s === 'string' ? JSON.parse(s) : s; } catch(e){ return null; } };
+
+/* ---------- estado ---------- */
+const S = { pastos:[], lotes:[], lanc:[], protocolos:[], benf:[], tarefas:[], config:{}, view:'inicio', form:null, filtro:{lote:'', tipo:''}, user:null, pronto:false };
+let Store = null, charts = [], mapa = null, camadas = null, desenho = null;
+
+/* ---------- armazenamento: modo teste (localStorage) ---------- */
+function LocalStore(){
+  const subs = {};
+  const k = c => 'manejo_cria_' + c;
+  const ler = c => { try { return JSON.parse(localStorage.getItem(k(c)) || (c==='config'?'{}':'[]')); } catch(e){ return c==='config'?{}:[]; } };
+  const gravar = (c, v) => { try { localStorage.setItem(k(c), JSON.stringify(v)); } catch(e){ toast('Sem espaço no aparelho'); } (subs[c]||[]).forEach(f => f(v)); };
+  return {
+    subscribe(c, cb){ (subs[c] = subs[c] || []).push(cb); cb(ler(c)); },
+    add(c, o){ const id = uid(); gravar(c, [...ler(c), {...o, id}]); return id; },
+    update(c, id, o){ gravar(c, ler(c).map(x => x.id === id ? {...x, ...o} : x)); },
+    remove(c, id){ gravar(c, ler(c).filter(x => x.id !== id)); },
+    setConfig(o){ gravar('config', {...ler('config'), ...o}); },
+    stop(){}
+  };
+}
+
+/* ---------- armazenamento: Firebase ---------- */
+async function FireStore(){
+  const {initializeApp} = await import(FB + 'firebase-app.js');
+  const fs = await import(FB + 'firebase-firestore.js');
+  const au = await import(FB + 'firebase-auth.js');
+  const app = initializeApp(firebaseConfig);
+  let db;
+  try { db = fs.initializeFirestore(app, {localCache: fs.persistentLocalCache({tabManager: fs.persistentMultipleTabManager()})}); }
+  catch(e){ db = fs.getFirestore(app); }
+  const auth = au.getAuth(app);
+  let unsubs = [];
+  const erro = e => toast('Erro ao salvar: ' + (e.code || e.message));
+  return {
+    auth, au,
+    subscribe(c, cb){
+      if (c === 'config') unsubs.push(fs.onSnapshot(fs.doc(db,'config','geral'), d => cb(d.exists() ? d.data() : {}), e => toast('Erro: ' + e.code)));
+      else unsubs.push(fs.onSnapshot(fs.collection(db, c), s => cb(s.docs.map(d => ({...d.data(), id:d.id}))), e => toast('Erro: ' + e.code)));
+    },
+    add(c, o){ const ref = fs.doc(fs.collection(db, c)); fs.setDoc(ref, o).catch(erro); return ref.id; },
+    update(c, id, o){ fs.updateDoc(fs.doc(db, c, id), o).catch(erro); },
+    remove(c, id){ fs.deleteDoc(fs.doc(db, c, id)).catch(erro); },
+    setConfig(o){ fs.setDoc(fs.doc(db,'config','geral'), o, {merge:true}).catch(erro); },
+    stop(){ unsubs.forEach(u => u()); unsubs = []; }
+  };
+}
+
+function assinar(){
+  Store.subscribe('pastos', v => { S.pastos = v; atualizar(); });
+  Store.subscribe('lotes', v => { S.lotes = v; atualizar(); });
+  Store.subscribe('lancamentos', v => { S.lanc = v; atualizar(); });
+  Store.subscribe('protocolos', v => { S.protocolos = v; atualizar(); });
+  Store.subscribe('benfeitorias', v => { S.benf = v; atualizar(); });
+  Store.subscribe('tarefas', v => { S.tarefas = v; atualizar(); });
+  Store.subscribe('config', v => { S.config = v || {}; atualizar(); });
+  S.pronto = true; render();
+}
+function atualizar(){
+  if (!S.pronto || S.view === 'form' || document.querySelector('.modal')) return;
+  if (S.view === 'mapa' && mapa){ desenharCamadas(); atualizarSelPastos(); return; }
+  render();
+}
+
+/* ---------- cálculos ---------- */
+const lotePor = id => S.lotes.find(l => l.id === id);
+const pastoPor = id => S.pastos.find(p => p.id === id);
+const protPor = id => S.protocolos.find(p => p.id === id);
+const nomeLote = id => id ? (lotePor(id)?.nome || '(lote removido)') : 'Fazenda toda';
+const ordenar = arr => [...arr].sort((a,b) => (a.data||'').localeCompare(b.data||'') || (a.criadoEm||0) - (b.criadoEm||0));
+const noPeriodo = (e, dias) => e.data > diasAtras(dias) && e.data <= hoje();
+
+function saldos(ate){
+  const R = {};
+  const add = (l, c, n) => { if (!l) return; R[l] = R[l] || {}; R[l][c] = (R[l][c] || 0) + n; };
+  for (const e of ordenar(S.lanc)){
+    if (ate && e.data > ate) continue;
+    switch (e.tipo){
+      case 'contagem':
+        for (const c of CAT_K){ const v = e.contagens?.[c]; if (v !== undefined && v !== null && v !== ''){ R[e.loteId] = R[e.loteId] || {}; R[e.loteId][c] = N(v); } }
+        break;
+      case 'parto':
+        add(e.loteId, 'bezerro', N(e.machos) + N(e.femeas));
+        if (N(e.primiparas)){ add(e.loteId, 'novilha', -N(e.primiparas)); add(e.loteId, 'vaca', N(e.primiparas)); }
+        break;
+      case 'morte': case 'saida': add(e.loteId, e.cat, -N(e.qtd)); break;
+      case 'entrada': add(e.loteId, e.cat, N(e.qtd)); break;
+      case 'transferencia':
+        add(e.loteId, e.cat, -N(e.qtd));
+        add(e.loteDestino || e.loteId, e.catDestino || e.cat, N(e.qtd));
+        break;
+      case 'desmama': {
+        const t = N(e.machos) + N(e.femeas);
+        add(e.loteId, 'bezerro', -t);
+        if (e.loteDestino) add(e.loteDestino, 'recria', t);
+        break;
+      }
+    }
+  }
+  return R;
+}
+
+function indicadores(){
+  const sal = saldos();
+  const tot = Object.fromEntries(CAT_K.map(c => [c, 0]));
+  let expostas = 0, tourosMonta = 0;
+  for (const [lid, cs] of Object.entries(sal)){
+    for (const c of CAT_K) tot[c] += cs[c] || 0;
+    if (lotePor(lid)?.tipo === 'monta'){ expostas += (cs.vaca||0) + (cs.novilha||0); tourosMonta += cs.touro || 0; }
+  }
+  const touros = tourosMonta || tot.touro;
+  const rec = S.lanc.filter(e => noPeriodo(e, 365));
+  let machos=0, femeas=0, natim=0, mortBez=0, desm=0, pesoSoma=0, pesoN=0, receita=0, gastos=0, vendidos=0;
+  for (const e of rec){
+    if (e.tipo === 'parto'){ machos += N(e.machos); femeas += N(e.femeas); natim += N(e.mortos); }
+    if (e.tipo === 'morte' && e.cat === 'bezerro') mortBez += N(e.qtd);
+    if (e.tipo === 'desmama'){ const t = N(e.machos)+N(e.femeas); desm += t; if (N(e.peso)){ pesoSoma += N(e.peso)*t; pesoN += t; } }
+    if ((e.tipo === 'saida' || e.tipo === 'desmama') && N(e.valor)){ receita += N(e.valor); vendidos += e.tipo === 'saida' ? N(e.qtd) : N(e.machos)+N(e.femeas); }
+    if (e.tipo === 'gasto') gastos += N(e.valor);
+  }
+  /* toque: último toque de cada lote nos últimos 12 meses */
+  const ultToque = {};
+  for (const e of ordenar(rec)) if (e.tipo === 'toque') ultToque[e.loteId] = e;
+  let prenhes = 0, vazias = 0;
+  for (const e of Object.values(ultToque)){ prenhes += N(e.prenhes); vazias += N(e.vazias); }
+  const vivos = machos + femeas, nasc = vivos + natim;
+  const primeira = S.lanc.length ? ordenar(S.lanc)[0].data : null;
+  return {
+    sal, tot, expostas, touros, machos, femeas, natim, vivos, nasc, mortBez, desm, receita, gastos, vendidos, prenhes, vazias, ultToque,
+    rebanho: CAT_K.reduce((s,c) => s + tot[c], 0),
+    natalidade: expostas ? nasc/expostas : null,
+    mortalidade: nasc ? (natim + mortBez)/nasc : null,
+    desmama: vivos ? desm/vivos : null,
+    pesoDesm: pesoN ? pesoSoma/pesoN : null,
+    relacao: touros ? expostas/touros : null,
+    prenhez: (prenhes + vazias) ? prenhes/(prenhes + vazias) : null,
+    temDados: S.lanc.length > 0,
+    parcial: !!primeira && primeira > diasAtras(365)
+  };
+}
+/* faixas de referência (ajustáveis) */
+const semNat = x => x == null ? 'n' : x >= .80 ? 'g' : x >= .65 ? 'a' : 'r';
+const semPren = x => x == null ? 'n' : x >= .80 ? 'g' : x >= .70 ? 'a' : 'r';
+const semMort = x => x == null ? 'n' : x <= .04 ? 'g' : x <= .08 ? 'a' : 'r';
+const semDesm = x => x == null ? 'n' : x >= .92 ? 'g' : x >= .85 ? 'a' : 'r';
+const semRel = x => x == null ? 'n' : x <= 30 ? 'g' : x <= 40 ? 'a' : 'r';
+const TXT_SEM = {g:'bom', a:'atenção', r:'crítico', n:'sem dados'};
+const COR_SEM = {g:'#2f7d4f', a:'#c68a12', r:'#b23b3b', n:'#8a8f84'};
+
+function statusSanidade(){
+  const out = [], h = hoje(), sal = saldos(), em15 = somaDias(h, 15);
+  for (const p of S.protocolos){
+    const aps = S.lanc.filter(e => e.tipo === 'sanitario' && e.protId === p.id);
+    const alvos = p.alvo === 'fazenda' ? [null] :
+      S.lotes.filter(l => l.ativo !== false && (p.cats || []).some(c => (sal[l.id]?.[c] || 0) > 0)).map(l => l.id);
+    for (const a of alvos){
+      const ult = aps.filter(e => a === null || !e.loteId || e.loteId === a).map(e => e.data).sort().pop() || null;
+      let estado, prazo, rot;
+      if (p.modo === 'meses'){
+        const m = +h.slice(5,7), y = +h.slice(0,4);
+        const ms = (p.meses || []).map(Number).sort((a,b) => a-b);
+        if (ms.includes(m)){ prazo = fimMes(h); estado = ult && ult.slice(0,7) === h.slice(0,7) ? 'ok' : 'pendente'; rot = estado === 'ok' ? 'feito em ' + fmtD(ult) : 'fazer até ' + fmtD(prazo); }
+        else { estado = 'ok'; const nx = ms.find(x => x > m) ?? ms[0]; prazo = nx ? `${nx > m ? y : y+1}-${pad(nx)}-01` : null; rot = prazo ? 'próxima: ' + fmtMes(prazo) : ''; }
+      } else {
+        if (!ult){ estado = 'pendente'; prazo = null; rot = 'sem registro'; }
+        else { prazo = somaDias(ult, N(p.dias) || 365); estado = prazo < h ? 'vencido' : prazo <= em15 ? 'proximo' : 'ok'; rot = (estado === 'vencido' ? 'venceu em ' : 'próxima até ') + fmtD(prazo); }
+      }
+      out.push({p, alvo:a, estado, prazo, ult, rot});
+    }
+  }
+  return out;
+}
+const SEM_SAN = {ok:'g', proximo:'a', pendente:'a', vencido:'r'};
+const TXT_SAN = {ok:'em dia', proximo:'vence logo', pendente:'pendente', vencido:'vencido'};
+
+function lotacao(sal){
+  const c = cfg();
+  return S.pastos.map(p => {
+    const ls = S.lotes.filter(l => l.ativo !== false && l.pastoId === p.id);
+    let ua = 0, cab = 0;
+    for (const l of ls) for (const k of CAT_K){ const n = Math.max(0, sal[l.id]?.[k] || 0); ua += n * N(c.ua[k]); cab += n; }
+    const cap = N(p.cap) || N(c.uaHa) || 1, area = N(p.area);
+    const uaha = area ? ua/area : null;
+    const sem = uaha == null ? 'n' : uaha <= cap ? 'g' : uaha <= cap*1.15 ? 'a' : 'r';
+    return {p, ua, cab, area, cap, uaha, sem, lotes:ls};
+  });
+}
+
+function consumoSal(I){
+  const c = cfg(), compras = S.lanc.filter(e => e.tipo === 'gasto' && e.gcat === 'sal' && N(e.qtd) && noPeriodo(e, 90));
+  if (!compras.length) return null;
+  const kg = compras.reduce((s,e) => s + N(e.qtd) * (e.unid === 'sacos' ? N(c.kgSaco) : e.unid === 'kg' ? 1 : 0), 0);
+  const cab = I.rebanho - Math.max(0, I.tot.bezerro);
+  const dias = Math.min(90, Math.max(30, difDias(compras.map(e => e.data).sort()[0], hoje())));
+  return cab > 0 ? {g: kg*1000/cab/dias, kg, cab, dias} : null;
+}
+
+function alertas(I){
+  const A = [], h = hoje();
+  for (const [lid, cs] of Object.entries(I.sal)) for (const c of CAT_K)
+    if ((cs[c]||0) < 0) A.push({n:'r', t:`<b>${esc(nomeLote(lid))}</b>: saldo negativo de ${CATS_C[c]} (${fmtN(cs[c])}). Faça uma contagem de curral.`});
+  for (const s of statusSanidade()){
+    if (s.estado === 'ok') continue;
+    const onde = s.alvo ? ' · ' + esc(nomeLote(s.alvo)) : '';
+    A.push({n: s.estado === 'vencido' || (s.p.obrig && s.estado === 'pendente') ? 'r' : 'a', t:`<b>${esc(s.p.nome)}</b>${onde}: ${TXT_SAN[s.estado]} (${s.rot})`, go:{prot:s.p.id, lote:s.alvo}});
+  }
+  for (const L of lotacao(I.sal)) if (L.sem === 'r' || L.sem === 'a')
+    A.push({n:L.sem, t:`<b>${esc(L.p.nome)}</b>: lotação de ${fmtN(L.uaha,2)} UA/ha (capacidade ${fmtN(L.cap,1)}).`});
+  if (I.temDados) for (const l of S.lotes.filter(l => l.ativo !== false)){
+    const tem = Object.values(I.sal[l.id] || {}).some(v => v > 0); if (!tem) continue;
+    const ult = S.lanc.filter(e => e.tipo === 'contagem' && e.loteId === l.id).map(e => e.data).sort().pop();
+    if (!ult) A.push({n:'a', t:`<b>${esc(l.nome)}</b>: nunca teve contagem de curral.`});
+    else if (difDias(ult, h) > 90) A.push({n:'a', t:`<b>${esc(l.nome)}</b>: última contagem há ${difDias(ult, h)} dias.`});
+  }
+  for (const s of statusTarefas()) if (s.atraso >= 1) A.push({n:'a', t:`Tarefa <b>${esc(s.t.nome)}</b> atrasada ${s.atraso} dia${s.atraso > 1 ? 's' : ''}.`});
+  for (const e of S.lanc.filter(e => e.tipo === 'tarefa' && e.problema && noPeriodo(e, 7))) A.push({n:'r', t:`Problema em <b>${esc(e.tarefaNome)}</b> (${fmtD(e.data)}): ${esc(e.obs)}`});
+  const montas = S.lotes.filter(l => l.ativo !== false && l.tipo === 'monta');
+  if (I.temDados && montas.length && !montas.some(l => I.ultToque[l.id]))
+    A.push({n:'a', t:'Nenhum <b>toque</b> nos lotes de monta nos últimos 12 meses. Um toque por ano mostra as vazias pra descarte.'});
+  return A.sort((a,b) => (a.n === 'r' ? 0 : 1) - (b.n === 'r' ? 0 : 1));
+}
+
+/* ---------- interface ---------- */
+function toast(msg, desfazer){
+  document.querySelector('.toast')?.remove();
+  const t = document.createElement('div'); t.className = 'toast';
+  t.innerHTML = `<span>${esc(msg)}</span>` + (desfazer ? '<button>Desfazer</button>' : '');
+  if (desfazer) t.querySelector('button').onclick = () => { desfazer(); t.remove(); };
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 5000);
+}
+function confirmar(msg, okTxt='Excluir'){
+  return new Promise(res => {
+    const m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = `<div class="box"><p style="margin:0 0 4px;font-size:16px">${esc(msg)}</p><div class="acts"><button class="btn sec" data-r="0">Cancelar</button><button class="btn" style="background:var(--verm)" data-r="1">${esc(okTxt)}</button></div></div>`;
+    m.onclick = ev => { const r = ev.target.dataset.r; if (r !== undefined || ev.target === m){ m.remove(); res(r === '1'); if (S.view !== 'form') atualizar(); } };
+    document.body.appendChild(m);
+  });
+}
+function modalForm(titulo, inner, onOk, okTxt='Salvar', depois){
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="box"><h2>${titulo}</h2><form>${inner}<p class="warn" data-err></p><div class="acts"><button type="button" class="btn sec" data-c>Cancelar</button><button class="btn">${esc(okTxt)}</button></div></form></div>`;
+  const fm = m.querySelector('form');
+  const fechar = () => { m.remove(); atualizar(); };
+  m.querySelector('[data-c]').onclick = fechar;
+  fm.onsubmit = ev => { ev.preventDefault(); const r = onOk(new FormData(fm), fm, msg => { m.querySelector('[data-err]').textContent = msg; }); if (r !== false) fechar(); };
+  document.body.appendChild(m);
+  depois?.(fm);
+}
+
+function periodo(){ const h = new Date().getHours(); return h >= 5 && h < 8 ? 'aurora' : h >= 8 && h < 17 ? 'dia' : h >= 17 && h < 19 ? 'tarde' : 'noite'; }
+function saudacao(){ const h = new Date().getHours(); return h >= 5 && h < 12 ? 'Bom dia' : h >= 12 && h < 18 ? 'Boa tarde' : 'Boa noite'; }
+const CEU = {aurora:['#f4a77f','#fde2c2'], dia:['#79bde9','#d8eef9'], tarde:['#e9824a','#f8cf90'], noite:['#101c3a','#2b4170']};
+function cena(){
+  const p = periodo(), [c1, c2] = CEU[p];
+  const astro = p === 'noite'
+    ? `<g fill="#fff"><circle cx="350" cy="14" r="16" fill="#f5f0d8" stroke="#2a231b" stroke-width="1.5"/><circle cx="358" cy="8" r="14" fill="${c1}"/>${[[200,6],[250,-4],[290,22],[380,40],[230,96],[150,100],[60,104],[300,92]].map(([x,y]) => `<circle cx="${x}" cy="${y}" r="1.4"/>`).join('')}</g>`
+    : `<g class="sol"><circle cx="${p === 'dia' ? 330 : p === 'aurora' ? 290 : 280}" cy="${p === 'dia' ? 18 : 104}" r="${p === 'dia' ? 22 : 26}" fill="${p === 'dia' ? '#ffd23f' : '#ffb347'}" stroke="#2a231b" stroke-width="2"/></g>`;
+  const d = new Date().toLocaleDateString('pt-BR', {weekday:'long', day:'numeric', month:'long'});
+  const dono = (S.config.dono || '').trim();
+  const cl = S.clima?.current ? `<div class="clima" aria-label="Tempo agora">${wmo(S.clima.current.weather_code)[0]} ${Math.round(S.clima.current.temperature_2m)}°${S.clima.daily ? `<small>· chuva ${S.clima.daily.precipitation_probability_max[0] ?? 0}%</small>` : ''}</div>` : '';
+  const morroLonge = p === 'noite' ? '#24395f' : '#7aa36b', morro = p === 'noite' ? '#1f3d2a' : '#4f8f37', terra = p === 'noite' ? '#5a2a17' : '#b5532a';
+  return `<header class="cena ${p}">
+    <svg class="paisagem" viewBox="0 -20 400 250" preserveAspectRatio="xMidYMax slice" aria-hidden="true">
+      <defs><linearGradient id="ceu" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="${c1}"/><stop offset="1" stop-color="${c2}"/></linearGradient></defs>
+      <rect y="-20" width="400" height="250" fill="url(#ceu)"/>
+      ${astro}
+      <path d="M0 140 C50 118 95 120 150 132 C210 146 260 108 320 112 C360 115 385 124 400 128 L400 230 L0 230Z" fill="${morroLonge}"/>
+      <path d="M0 168 C70 150 150 156 220 166 C290 176 340 156 400 160 L400 230 L0 230Z" fill="${morro}" stroke="#2a231b" stroke-width="2"/>
+      <path d="M118 230 C160 205 210 186 286 176 L300 178 C238 192 206 208 190 230Z" fill="${terra}" stroke="#2a231b" stroke-width="1.5"/>
+      <g stroke="#2a231b" stroke-width="2">
+        <path d="M346 172 C344 150 348 136 340 120 M345 150 C352 142 360 140 364 132 M343 138 C336 132 330 132 326 126" fill="none" stroke-width="4" stroke-linecap="round"/>
+        <g fill="#f2b705"><circle cx="340" cy="112" r="16"/><circle cx="324" cy="122" r="12"/><circle cx="362" cy="124" r="13"/><circle cx="352" cy="104" r="11"/><circle cx="330" cy="104" r="10"/></g>
+        <g fill="#d99a00" stroke="none"><circle cx="336" cy="108" r="3"/><circle cx="356" cy="120" r="3"/><circle cx="326" cy="124" r="2.5"/><circle cx="346" cy="98" r="2.5"/></g>
+      </g>
+      <g color="#2a231b">
+        <use href="#boi" x="40" y="146" width="46" height="30"/>
+        <use href="#boi" x="96" y="152" width="36" height="24"/>
+        <use href="#boi" x="232" y="150" width="30" height="20" transform="translate(494 0) scale(-1 1)"/>
+      </g>
+      <g stroke="#6b4526" stroke-width="3" stroke-linecap="round">
+        <path d="M0 206 L400 200 M0 219 L400 213" stroke-width="2.5"/>
+        ${[8,58,108,158,208,258,308,358].map(x => `<path d="M${x} ${227 - x*0.015} L${x} ${197 - x*0.015}"/>`).join('')}
+      </g>
+    </svg>
+    <div class="saud"><h1>${saudacao()}${dono ? ', ' + esc(dono) : ''}!</h1><p>${d.replace('-feira','')}</p></div>
+    ${cl}
+  </header>`;
+}
+function render(){
+  const app = $('#app');
+  if (mapa){ mapa.remove(); mapa = null; camadas = null; desenho = null; }
+  charts.forEach(c => c.destroy()); charts = [];
+  if (!Store){ app.innerHTML = '<div class="login"><p class="muted">Abrindo a porteira…</p></div>'; return; }
+  if (!MODO_TESTE && !S.user){ app.innerHTML = telaLogin(); ligarLogin(); return; }
+  if (!S.pronto){ app.innerHTML = '<div class="login"><p class="muted">Buscando as anotações…</p></div>'; return; }
+  const V = {inicio:[vInicio, ligarInicio], lancar:[vLancar, ligarLancar], form:[vForm, ligarForm], sanidade:[vSan, ligarSan], mapa:[vMapa, ligarMapa], historico:[vHist, ligarHist], cadastros:[vCad, ligarCad], mais:[vMais, ligarMais]}[S.view];
+  const TIT = {lancar:'O que aconteceu hoje?', form:'Anotar', sanidade:'Saúde do rebanho', mapa:'Mapa da fazenda', historico:'Caderno', cadastros:'Cadastros', mais:'Mais coisas'};
+  const nb = (v, i, t, on) => `<button data-nav="${v}" class="${on ? 'on' : ''}" ${on ? 'aria-current="page"' : ''}><span class="i">${i}</span>${t}</button>`;
+  const emMais = ['mais','historico','cadastros'].includes(S.view);
+  app.innerHTML = `
+    ${S.view === 'inicio' ? cena() : `<header class="top"><div class="in"><h1>${TIT[S.view]}</h1><small>${esc(S.config.nome || '')}</small></div></header>`}
+    <main class="wrap">${MODO_TESTE ? '<div class="banner"><b>Modo teste:</b> as anotações ficam só neste celular. Pra valer, cole o firebaseConfig no arquivo.</div>' : ''}${V[0]()}</main>
+    <nav class="bot" aria-label="Menu principal"><div class="in">
+      ${nb('inicio','🏡','Fazenda', S.view === 'inicio')}${nb('mapa','🗺️','Mapa', S.view === 'mapa')}
+      <button class="anotar ${S.view === 'lancar' || S.view === 'form' ? 'on' : ''}" data-nav="lancar"><span class="mais" aria-hidden="true">+</span>Anotar</button>
+      ${nb('sanidade','💉','Saúde', S.view === 'sanidade')}${nb('mais','📒','Mais', emMais)}
+    </div></nav>`;
+  app.querySelectorAll('[data-nav]').forEach(b => b.onclick = () => irPara(b.dataset.nav));
+  app.querySelectorAll('[data-go]').forEach(b => b.onclick = () => irPara(b.dataset.go));
+  V[1]?.();
+}
+function irPara(v){ S.view = v; S.form = null; render(); window.scrollTo(0,0); }
+function abrirForm(tipo, extra={}){
+  let ul = ''; try { ul = localStorage.getItem('manejo_ultimo_lote') || ''; } catch(e){}
+  const usaUlt = !['gasto','chuva','sanitario'].includes(tipo) && lotePor(ul) && lotePor(ul).ativo !== false;
+  S.form = {tipo, loteId: usaUlt ? ul : '', ...extra};
+  S.view = 'form'; render(); window.scrollTo(0,0);
+}
+
+/* ---------- login ---------- */
+/* Login por usuário: o Firebase só aceita e-mail, então "luiz" vira "luiz@<domínio do projeto>" por baixo.
+   No console, cada usuário é criado com esse e-mail interno. */
+const DOMINIO_LOGIN = 'fazenda-barro-vermelho-8d3d6.firebaseapp.com';
+const paraEmail = u => { u = (u || '').trim().toLowerCase(); if (u.includes('@')) return u;
+  return u.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9._-]/g, '') + '@' + DOMINIO_LOGIN; };
+const usuarioAtual = () => { const e = S.user?.email || ''; return e.endsWith('@' + DOMINIO_LOGIN) ? e.split('@')[0] : e || (MODO_TESTE ? 'teste' : ''); };
+function telaLogin(){
+  let u = ''; try { u = localStorage.getItem('manejo_usuario') || ''; } catch(e){}
+  return `<div class="login"><div style="text-align:center;margin-bottom:14px"><img src="icone-192.png" alt="" width="96" height="96" style="border:3px solid var(--tinta);border-radius:22px;box-shadow:3px 3px 0 var(--tinta)" onerror="this.remove()"></div>
+    <h1 style="text-align:center">${esc(S.config.nome || 'Fazenda Barro Vermelho')}</h1><p class="muted" style="margin:0 0 22px;text-align:center">Entre com seu usuário e senha.</p>
+    <label class="f"><span>Usuário</span><input type="text" id="lg-u" value="${esc(u)}" autocomplete="username" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="ex.: luiz"></label>
+    <label class="f"><span>Senha</span><input type="password" id="lg-s" autocomplete="current-password"></label>
+    <button class="btn" id="lg-b">Entrar</button><p class="warn" id="lg-err" role="alert"></p></div>`;
+}
+function ligarLogin(){
+  const go = async () => {
+    const u = $('#lg-u').value.trim(), s = $('#lg-s').value;
+    if (!u || !s){ $('#lg-err').textContent = 'Digite o usuário e a senha.'; return; }
+    $('#lg-b').disabled = true; $('#lg-b').textContent = 'Entrando…'; $('#lg-err').textContent = '';
+    try { localStorage.setItem('manejo_usuario', u); } catch(_){}
+    try { await Store.au.signInWithEmailAndPassword(Store.auth, paraEmail(u), s); }
+    catch(err){
+      const c = err.code || '';
+      $('#lg-err').textContent = c.includes('network') ? 'Sem internet agora. Tente de novo quando pegar sinal.'
+        : c.includes('too-many') ? 'Muitas tentativas. Espere uns minutos e tente de novo.'
+        : 'Usuário ou senha não conferem.';
+      $('#lg-b').disabled = false; $('#lg-b').textContent = 'Entrar';
+    }
+  };
+  $('#lg-b').onclick = go;
+  $('#lg-s').onkeydown = ev => { if (ev.key === 'Enter') go(); };
+}
+
+/* ---------- painel (tela Fazenda) ---------- */
+function vInicio(){
+  const I = indicadores();
+  if (!S.lotes.length || !I.temDados){
+    return `<div class="card"><h2>Vamos montar a fazenda no celular</h2>
+      <ol class="onb">
+        <li ${S.pastos.length ? 'style="opacity:.5"' : ''}>Cadastre os <b>pastos</b>, ou desenhe no <b>Mapa</b></li>
+        <li ${S.lotes.length ? 'style="opacity:.5"' : ''}>Cadastre os <b>lotes</b> e o pasto de cada um</li>
+        <li>Conte o gado no curral e anote em <b>Anotar → Contei no curral</b></li>
+        <li>Carregue as <b>vacinas de Goiás</b> na aba Saúde</li>
+        <li>Daí pra frente é anotar: nasceu, morreu, vendeu, choveu…</li>
+      </ol>
+      <button class="btn" style="margin-top:16px" data-go="cadastros">Começar pelos cadastros</button></div>
+      ${cardLida()}${cardChuva()}`;
+  }
+  const A = alertas(I);
+  return `${cardLida()}
+    ${A.length ? `<div class="card" style="background:var(--ipe-claro)"><h2>Recados <span class="badge ${A[0].n === 'r' ? 'r' : 'a'}">${A.length}</span></h2>
+      ${A.map((a,i) => `<div class="alerta"><span class="dot" style="background:${COR_SEM[a.n]}"></span><div style="flex:1">${a.t}</div>${a.go ? `<button class="lnk" data-al="${i}">Anotar</button>` : ''}</div>`).join('')}</div>` : ''}
+    ${cardBoiada(I)}
+    ${cardFivela(I)}
+    ${cardCria(I)}
+    ${cardFinanceiro(I)}
+    ${cardChuva()}
+    ${cardPastos(I)}
+    ${cardPremios()}
+    <div class="card"><h2>Nascimentos por mês</h2>
+      <div style="height:210px"><canvas id="ch-p"></canvas></div>
+      <p class="hint">${fmtN(I.machos)} machos e ${fmtN(I.femeas)} fêmeas no último ano. Os meses que mais nascem mostram quando as vacas emprenham por conta própria: daqui sai a estação de monta.</p></div>
+    ${cardLotes(I)}
+    <button class="btn" id="resumo" style="background:#1f8f4e">📤 Mandar o resumo da semana no WhatsApp</button>`;
+}
+function cardBoiada(I){
+  const cats = [['vaca','Vacas',1],['novilha','Novilhas',.82],['touro','Touros',1.12],['bezerro','Bezerros no pé',.58],['recria','Recria',.72]];
+  const nl = S.lotes.filter(l => l.ativo !== false).length;
+  return `<div class="card"><h2>A boiada hoje</h2>
+    <div class="curral-g">${cats.map(([k,n,s]) => `<div class="cur"><svg viewBox="0 0 64 42" style="width:${Math.round(54*s)}px" aria-hidden="true"><use href="#boi"/></svg><b>${fmtN(I.tot[k])}</b><span>${n}</span></div>`).join('')}</div>
+    <p class="totalb">São <b>${fmtN(I.rebanho)} cabeças</b> em ${nl} lote${nl === 1 ? '' : 's'}.</p></div>`;
+}
+function cardCria(I){
+  const pc = x => Math.round(x*100);
+  const linha = (q, x, s, sub) => `<div class="regua"><div class="q">${q}</div>${x != null ? `<div class="trilho"><i style="width:${Math.max(3, Math.min(100, x*100))}%;background:${COR_SEM[s]}"></i></div>` : ''}<small>${sub}</small></div>`;
+  const sp = semPren(I.prenhez), sn = I.parcial ? 'n' : semNat(I.natalidade), sm = semMort(I.mortalidade), sd = I.parcial ? 'n' : semDesm(I.desmama);
+  const parc = I.parcial ? ' Ainda falta um ano de anotações pra essa conta ficar certa.' : '';
+  return `<div class="card"><h2>Como anda a cria</h2>
+    ${linha(I.prenhez != null ? `<b>${pc(I.prenhez)}</b> de cada 100 vacas tocadas estão prenhas` : 'Ainda não tem toque anotado', I.prenhez, sp, I.prenhez != null ? `${fmtN(I.prenhes)} prenhas e ${fmtN(I.vazias)} vazias no último toque. Bom é 80 ou mais.` : 'O toque mostra as vazias pra descarte.')}
+    ${linha(I.natalidade != null ? `Nasceram <b>${pc(I.natalidade)}</b> bezerros pra cada 100 vacas` : 'Sem nascimentos anotados', I.natalidade, sn, `No último ano, contando as vacas dos lotes de monta. Bom é 80 ou mais.${parc}`)}
+    ${linha(I.mortalidade != null ? `Morreram <b>${pc(I.mortalidade)}</b> de cada 100 bezerros` : 'Sem nascimentos pra calcular perdas', I.mortalidade != null ? Math.min(1, I.mortalidade*5) : null, sm, `${fmtN(I.natim)} nasceram mortos e ${fmtN(I.mortBez)} morreram depois. Bom é até 4.`)}
+    ${linha(I.desmama != null ? `<b>${pc(I.desmama)}</b> de cada 100 nascidos chegaram à desmama` : 'Sem desmama anotada', I.desmama, sd, `${fmtN(I.desm)} desmamados${I.pesoDesm ? ` com ${fmtN(I.pesoDesm)} kg em média` : ''}.${parc}`)}
+    ${linha(I.relacao ? `<b>1 touro</b> pra cada <b>${fmtN(I.relacao)}</b> vacas` : 'Sem touro anotado nos lotes de monta', null, semRel(I.relacao), I.relacao ? (I.relacao <= 30 ? 'Tá bem servido. A referência é até 30 vacas por touro.' : 'Pouco touro pra tanta vaca. A referência é até 30 por touro.') : '')}
+  </div>`;
+}
+function cardFinanceiro(I){
+  const gs = S.lanc.filter(e => e.tipo === 'gasto');
+  if (!gs.length && !I.receita) return '';
+  const mes = hoje().slice(0,7);
+  const tMes = gs.filter(e => (e.data||'').startsWith(mes)).reduce((s,e) => s + N(e.valor), 0);
+  const por = {}; for (const e of gs.filter(e => noPeriodo(e, 365))) por[e.gcat] = (por[e.gcat] || 0) + N(e.valor);
+  const mx = Math.max(...Object.values(por), 1);
+  const res = I.receita - I.gastos;
+  const sal = consumoSal(I);
+  return `<div class="card"><h2>O dinheiro do último ano</h2>
+    <div class="res"><div><small>Entrou</small><b style="color:var(--pasto)">${fmtR(I.receita)}</b></div><div><small>Saiu</small><b style="color:var(--terra)">${fmtR(I.gastos)}</b></div><div><small>${res >= 0 ? 'Sobrou' : 'Faltou'}</small><b style="color:${res >= 0 ? 'var(--pasto)' : 'var(--verm)'}">${fmtR(Math.abs(res))}</b></div></div>
+    <div class="kpis">
+      <div class="kpi a"><div class="l">Cada bezerro desmamado custou</div><div class="v">${I.desm ? fmtR(I.gastos / I.desm) : '—'}</div></div>
+      <div class="kpi g"><div class="l">Cada cabeça vendida deu</div><div class="v">${I.vendidos ? fmtR(I.receita / I.vendidos) : '—'}</div></div>
+      <div class="kpi a"><div class="l">Gasto deste mês</div><div class="v">${fmtR(tMes)}</div></div>
+      <div class="kpi n"><div class="l">Sal por cabeça por dia</div><div class="v">${sal ? fmtN(sal.g) + ' g' : '—'}</div><div class="s">${sal ? 'pelas compras, sem os bezerros' : 'anote a quantidade do sal'}</div></div>
+    </div>
+    ${Object.entries(por).sort((a,b) => b[1]-a[1]).map(([k,v]) => `<div class="gl"><div class="h"><span>${GASTOS[k]?.i||''} ${esc(GASTOS[k]?.n||k)}</span><b>${fmtR(v)}</b></div><div class="bar" style="width:${(v/mx*100).toFixed(1)}%"></div></div>`).join('')}</div>`;
+}
+function cardPastos(I){
+  const Ls = lotacao(I.sal).filter(x => x.lotes.length || x.area);
+  if (!Ls.length) return '';
+  return `<div class="card"><h2>Os pastos aguentam?</h2>
+    ${Ls.sort((a,b) => (b.uaha||0) - (a.uaha||0)).map(x => `<div class="gl"><div class="h"><span><b>${esc(x.p.nome)}</b> <small class="muted">${x.area ? fmtN(x.area,1) + ' ha' : 'sem área'}</small></span>
+      <span class="badge ${x.sem}">${x.sem === 'n' ? 'falta a área' : x.sem === 'g' ? 'folgado' : x.sem === 'a' ? 'no limite' : 'apertado'}</span></div>
+      <small class="muted">${fmtN(x.cab)} cabeças${x.uaha != null ? ` · ${fmtN(x.uaha,2)} UA por hectare (aguenta ${fmtN(x.cap,1)})` : ''}${x.lotes.length ? ' · ' + esc(x.lotes.map(l => l.nome).join(', ')) : ''}</small></div>`).join('')}
+    <p class="hint">UA é unidade animal: uma vaca de 450 kg. Dá pra ajustar em Cadastros.</p></div>`;
+}
+function cardChuva(){
+  const ch = S.lanc.filter(e => e.tipo === 'chuva'), dd = S.clima?.daily;
+  if (!ch.length && !dd) return '';
+  const mes = hoje().slice(0,7);
+  const tMes = ch.filter(e => e.data.startsWith(mes)).reduce((s,e) => s + N(e.mm), 0);
+  const t12 = ch.filter(e => noPeriodo(e, 365)).reduce((s,e) => s + N(e.mm), 0);
+  const DS = ['dom','seg','ter','qua','qui','sex','sáb'];
+  return `<div class="card"><h2>Chuva</h2>
+    ${dd ? `<div class="prev">${dd.time.map((t,i) => `<div class="${i === 0 ? 'hj' : ''}"><b>${i === 0 ? 'hoje' : DS[new Date(t + 'T12:00').getDay()]}</b><span class="e">${wmo(dd.weather_code[i])[0]}</span>${Math.round(dd.temperature_2m_max[i])}°<br><span class="mm">${(dd.precipitation_probability_max[i] ?? 0)}%</span></div>`).join('')}</div>
+      <p class="hint" style="margin:-4px 0 12px">Previsão pra fazenda: chance de chuva em cada dia.${dd.precipitation_sum ? ` Esperado na semana: ${fmtN(dd.precipitation_sum.reduce((s,x) => s + (x||0), 0))} mm.` : ''}</p>` : ''}
+    ${ch.length ? `<div class="res"><div><small>Este mês</small><b>${fmtN(tMes)} mm</b></div><div><small>No ano</small><b>${fmtN(t12)} mm</b></div><div><small>Última</small><b>${fmtN(ordenar(ch).pop().mm)} mm</b></div></div>
+      <div style="height:170px"><canvas id="ch-c"></canvas></div>` : '<p class="muted">Anote a chuva do pluviômetro em <b>Anotar → Choveu</b>.</p>'}</div>`;
+}
+function cardLotes(I){
+  const linhas = S.lotes.filter(l => l.ativo !== false || Object.values(I.sal[l.id]||{}).some(v => v)).map(l => {
+    const c = I.sal[l.id] || {};
+    return `<tr><td><b>${esc(l.nome)}</b><br><small class="muted">${esc(pastoPor(l.pastoId)?.nome || 'sem pasto')}</small></td>${CAT_K.map(x => `<td class="${(c[x]||0)<0?'neg':''}">${c[x] ? fmtN(c[x]) : '·'}</td>`).join('')}</tr>`;
+  }).join('');
+  return `<div class="card"><h2>Lote por lote</h2>
+    <div style="overflow-x:auto"><table><thead><tr><th>Lote</th><th>Vaca</th><th>Nov.</th><th>Touro</th><th>Bez.</th><th>Rec.</th></tr></thead><tbody>${linhas}</tbody></table></div>
+    <p class="hint">Número vermelho: a conta não fecha. Conte no curral pra acertar.</p></div>`;
+}
+function cardFivela(I){
+  const F = fivela(I);
+  const MET = {Cobre:['#a8582a','#e3a274'], Bronze:['#7d5528','#d8a35e'], Prata:['#8d969e','#f1f4f6'], Ouro:['#b88600','#ffe06a']}[F.nivel];
+  const prox = F.total < 40 ? ['Bronze',40] : F.total < 60 ? ['Prata',60] : F.total < 80 ? ['Ouro',80] : null;
+  const dicas = F.pilares.filter(p => p.dica).sort((a,b) => (20-b.p) - (20-a.p)).slice(0,3);
+  return `<div class="card"><h2>Nota da fazenda</h2>
+    <div class="fivela">
+      <svg viewBox="0 0 220 150" role="img" aria-label="Nota ${F.total} de 100, fivela de ${F.nivel}">
+        <defs><linearGradient id="met" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="${MET[1]}"/><stop offset=".55" stop-color="${MET[0]}"/><stop offset="1" stop-color="${MET[1]}"/></linearGradient></defs>
+        <ellipse cx="110" cy="75" rx="104" ry="68" fill="url(#met)" stroke="#2a231b" stroke-width="3.5"/>
+        <ellipse cx="110" cy="75" rx="92" ry="57" fill="none" stroke="#2a231b" stroke-width="2" stroke-dasharray="5 4"/>
+        <ellipse cx="110" cy="75" rx="76" ry="44" fill="rgba(255,255,255,.22)" stroke="#2a231b" stroke-width="2"/>
+        <path d="M30 75 l8 -5 l0 10 Z M190 75 l-8 -5 l0 10 Z" fill="#2a231b"/>
+        <text x="110" y="88" text-anchor="middle" font-family="Alfa Slab One, serif" font-size="48" fill="#2a231b">${F.total}</text>
+        <text x="110" y="108" text-anchor="middle" font-family="Atkinson Hyperlegible, sans-serif" font-weight="700" font-size="13" fill="#2a231b">de 100</text>
+      </svg>
+      <div><div class="nivel">Fivela de ${F.nivel}</div>
+        ${F.pilares.map(p => `<div class="pilar"><span>${p.n}</span><b style="text-align:right">${p.p}/20</b><div class="tr"><i style="width:${p.p*5}%;background:${p.p >= 16 ? 'var(--pasto)' : p.p >= 10 ? 'var(--ipe)' : 'var(--verm)'}"></i></div></div>`).join('')}</div>
+    </div>
+    ${dicas.length ? `<div class="subir"><b>${prox ? `Faltam ${prox[1] - F.total} pontos pra Fivela de ${prox[0]}.` : 'Pra manter o Ouro:'}</b><ul style="margin:6px 0 0;padding-left:20px">${dicas.map(d => `<li>${d.dica} <b>(+${20 - d.p})</b></li>`).join('')}</ul></div>` : '<p class="hint">Tudo em ordem. Fivela de Ouro merecida.</p>'}
+  </div>`;
+}
+function cardPremios(){
+  const P = premios(), ganhos = P.filter(p => p.ok).length;
+  return `<div class="card"><h2>Prêmios <span class="badge g">${ganhos} de ${P.length}</span></h2>
+    <div class="premios">${P.map(p => `<button class="premio ${p.ok ? '' : 'bloq'}" data-pr="${p.id}" aria-label="${esc(p.n)}${p.ok ? ', ganho' : ', ainda não ganho'}"><span class="m">${p.i}</span><span>${esc(p.n)}</span></button>`).join('')}</div>
+    <p class="hint">Toque num prêmio pra ver como ganhar.</p></div>`;
+}
+
+/* ---------- gamificação: fivela, prêmios, lida ---------- */
+const clamp = x => Math.max(0, Math.min(1, x));
+function prevBaixas(dias){
+  const ini = diasAtras(dias), tk = S.lanc.filter(e => e.tipo === 'tarefa' && e.data > ini && e.data <= hoje());
+  const prev = S.tarefas.filter(t => t.ativo !== false).reduce((s,t) => s + Math.max(1, Math.floor(dias / (N(t.freq) || 1))), 0);
+  return {prev, feitas: tk.length};
+}
+function fivela(I){
+  const P = [];
+  const r = I.prenhez != null ? I.prenhez : (!I.parcial ? I.natalidade : null);
+  const pRep = r == null ? 10 : Math.round(clamp((r - .5) / .35) * 20);
+  P.push({n:'Reprodução', p:pRep, dica: r == null ? 'Fazer o toque e anotar prenhas e vazias' : pRep < 20 ? 'Subir a prenhez: tocar e descartar as vazias' : ''});
+  const m = I.mortalidade, pBez = m == null ? 10 : Math.round(clamp((.10 - m) / .07) * 20);
+  P.push({n:'Bezerro vivo', p:pBez, dica: m == null ? 'Anotar os nascimentos' : pBez < 20 ? 'Ronda nas paridas pra perder menos bezerro' : ''});
+  const st = statusSanidade(), okS = st.filter(s => s.estado === 'ok').length;
+  const pSau = !S.protocolos.length ? 0 : st.length ? Math.round(okS / st.length * 20) : 20;
+  const pend = st.find(s => s.estado !== 'ok');
+  P.push({n:'Vacina em dia', p:pSau, dica: !S.protocolos.length ? 'Carregar as vacinas de Goiás na aba Saúde' : pend ? `Pôr em dia: ${pend.p.nome}${pend.alvo ? ' (' + nomeLote(pend.alvo) + ')' : ''}` : ''});
+  const b = prevBaixas(7), pLida = !S.tarefas.length ? 0 : Math.round(clamp(b.feitas / Math.max(1, b.prev)) * 20);
+  P.push({n:'Lida feita', p:pLida, dica: !S.tarefas.length ? 'Cadastrar a lida do vaqueiro (Mais → Cadastros)' : pLida < 20 ? 'Dar baixa na lida todo dia' : ''});
+  const dias = new Set(S.lanc.filter(e => noPeriodo(e, 14) && e.tipo !== 'tarefa').map(e => e.data)).size;
+  const pCad = Math.round(clamp(dias / 8) * 20);
+  P.push({n:'Caderno em dia', p:pCad, dica: pCad < 20 ? 'Anotar o que acontece no pasto mais dias da semana' : ''});
+  const total = P.reduce((s,x) => s + x.p, 0);
+  return {total, pilares:P, nivel: total >= 80 ? 'Ouro' : total >= 60 ? 'Prata' : total >= 40 ? 'Bronze' : 'Cobre'};
+}
+function sequenciaLida(){
+  const diarias = S.tarefas.filter(t => t.ativo !== false && (N(t.freq) || 1) === 1);
+  if (!diarias.length) return 0;
+  const feito = d => diarias.every(t => S.lanc.some(e => e.tipo === 'tarefa' && e.tarefaId === t.id && e.data === d));
+  let d = hoje(), n = 0;
+  if (!feito(d)) d = somaDias(d, -1);
+  while (feito(d) && n < 400){ n++; d = somaDias(d, -1); }
+  return n;
+}
+function premios(){
+  const L = S.lanc, h = hoje(), ano = h.slice(0,4);
+  const pt = L.filter(e => e.tipo === 'parto');
+  const vivosTot = pt.reduce((s,e) => s + N(e.machos) + N(e.femeas), 0);
+  const vivosAno = pt.filter(e => e.data.startsWith(ano)).reduce((s,e) => s + N(e.machos) + N(e.femeas), 0);
+  const p30 = pt.filter(e => noPeriodo(e, 30));
+  const perda30 = L.filter(e => e.tipo === 'morte' && e.cat === 'bezerro' && noPeriodo(e, 30)).length + p30.reduce((s,e) => s + N(e.mortos), 0);
+  const primeira = L.length ? ordenar(L)[0].data : h;
+  const st = statusSanidade(), seq = sequenciaLida();
+  const chuvas = L.filter(e => e.tipo === 'chuva').length;
+  const geo = S.pastos.filter(p => p.geo).length;
+  const dias30 = new Set(L.filter(e => noPeriodo(e, 30) && e.tipo !== 'tarefa').map(e => e.data)).size;
+  const sal = saldos(), comBoi = S.lotes.filter(l => l.ativo !== false && Object.values(sal[l.id] || {}).some(v => v > 0));
+  const contada = comBoi.length > 0 && comBoi.every(l => L.some(e => e.tipo === 'contagem' && e.loteId === l.id && noPeriodo(e, 90)));
+  return [
+    {id:'p1', i:'🐮', n:'Primeiro bezerro', d:'Anotar o primeiro nascimento no app.', ok: pt.length > 0},
+    {id:'p50', i:'🌾', n:'Cria de respeito', d:`50 bezerros nascidos vivos em ${ano}.`, ok: vivosAno >= 50, prog:[vivosAno,50]},
+    {id:'p100', i:'🏆', n:'Centena', d:'100 bezerros nascidos vivos anotados no app.', ok: vivosTot >= 100, prog:[vivosTot,100]},
+    {id:'semperda', i:'🛡️', n:'Mês sem perda', d:'30 dias com bezerro nascendo e nenhum morrendo.', ok: p30.length > 0 && perda30 === 0 && difDias(primeira, h) >= 30},
+    {id:'toque', i:'🩺', n:'Mão no toque', d:'Anotar o primeiro toque.', ok: L.some(e => e.tipo === 'toque')},
+    {id:'decl', i:'📜', n:'Papelada em dia', d:'Anotar a declaração de rebanho no Sidago.', ok: L.some(e => e.tipo === 'sanitario' && /declara/i.test(protPor(e.protId)?.nome || e.protNome || ''))},
+    {id:'vacina', i:'💉', n:'Rebanho protegido', d:'Todas as vacinas e obrigações em dia ao mesmo tempo.', ok: st.length > 0 && st.every(s => s.estado === 'ok')},
+    {id:'lida7', i:'🤠', n:'Lida caprichada', d:'7 dias seguidos com toda a lida diária feita.', ok: seq >= 7, prog:[seq,7]},
+    {id:'chuva10', i:'🌧️', n:'Olho no céu', d:'Anotar 10 chuvas do pluviômetro.', ok: chuvas >= 10, prog:[chuvas,10]},
+    {id:'mapa3', i:'🗺️', n:'Fazenda no mapa', d:'Desenhar 3 pastos no mapa.', ok: geo >= 3, prog:[geo,3]},
+    {id:'cerca', i:'〰️', n:'Cerca medida', d:'Medir uma cerca no mapa.', ok: S.benf.some(b => b.tipo === 'cerca')},
+    {id:'caderno', i:'📒', n:'Caderno em dia', d:'Anotar alguma coisa em 20 dias diferentes no mês.', ok: dias30 >= 20, prog:[dias30,20]},
+    {id:'contada', i:'📋', n:'Boiada contada', d:'Todos os lotes contados no curral nos últimos 90 dias.', ok: contada},
+    {id:'venda', i:'💵', n:'Primeira venda', d:'Anotar uma venda com o valor.', ok: L.some(e => N(e.valor) && (e.tipo === 'saida' || e.tipo === 'desmama'))}
+  ];
+}
+function premiosVistos(){ try { return JSON.parse(localStorage.getItem('manejo_premios_vistos') || 'null'); } catch(e){ return null; } }
+function marcarVistos(ids){ try { localStorage.setItem('manejo_premios_vistos', JSON.stringify(ids)); } catch(e){} }
+async function checarPremios(){
+  const ganhos = premios().filter(p => p.ok), vistos = premiosVistos();
+  if (vistos === null){ marcarVistos(ganhos.map(p => p.id)); return; }
+  const novos = ganhos.filter(p => !vistos.includes(p.id));
+  if (!novos.length) return;
+  marcarVistos([...vistos, ...novos.map(p => p.id)]);
+  for (const p of novos) await celebrar({icone:p.i, titulo:'Prêmio novo!', texto:`<b>${esc(p.n)}</b>. ${esc(p.d)}`, premio:true});
+}
+function verPremio(id){
+  const p = premios().find(x => x.id === id); if (!p) return;
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="box" style="text-align:center"><div class="premio ${p.ok ? '' : 'bloq'}" style="margin:0 auto 10px"><span class="m" style="width:84px;height:84px;font-size:40px">${p.i}</span></div>
+    <h2>${esc(p.n)}</h2><p style="margin:0 0 8px">${esc(p.d)}</p>
+    <p class="${p.ok ? '' : 'muted'}" style="font-weight:700">${p.ok ? '✓ Ganho!' : p.prog ? `Falta pouco: ${fmtN(p.prog[0])} de ${fmtN(p.prog[1])}` : 'Ainda não ganho'}</p>
+    <button class="btn" style="margin-top:12px">Fechar</button></div>`;
+  m.onclick = ev => { if (ev.target === m || ev.target.tagName === 'BUTTON'){ m.remove(); atualizar(); } };
+  document.body.appendChild(m);
+}
+function celebrar({icone, titulo, texto, premio}){
+  return new Promise(res => {
+    const f = document.createElement('div'); f.className = 'festa'; f.setAttribute('role', 'dialog'); f.setAttribute('aria-label', titulo.replace(/<[^>]+>/g,''));
+    const flores = matchMedia('(prefers-reduced-motion: reduce)').matches ? '' : Array.from({length:26}, () =>
+      `<i class="flor" style="left:${Math.random()*100}%;animation-duration:${2.2 + Math.random()*2.2}s;animation-delay:${Math.random()*.8}s;transform:scale(${.7 + Math.random()*.9})"></i>`).join('');
+    f.innerHTML = `${flores}<div class="quadro"><div class="selo ${premio ? 'premio-s' : ''}">${icone}</div><h2>${titulo}</h2><p>${texto}</p><button class="btn">Beleza!</button></div>`;
+    const fechar = () => { f.remove(); res(); atualizar(); };
+    f.querySelector('button').onclick = fechar;
+    f.onclick = ev => { if (ev.target === f) fechar(); };
+    document.body.appendChild(f);
+    f.querySelector('button').focus();
+  });
+}
+async function posSalvar(tipo, o, id){
+  toast(`${EV[tipo].n}: anotado ✓`, () => { Store.remove('lancamentos', id); toast('Anotação desfeita'); });
+  const ano = hoje().slice(0,4), vivos = N(o.machos) + N(o.femeas);
+  let fest = null;
+  if (tipo === 'parto' && vivos > 0){
+    const n = S.lanc.filter(e => e.tipo === 'parto' && e.data.startsWith(ano)).reduce((s,e) => s + N(e.machos) + N(e.femeas), 0);
+    fest = {icone:'🐮', titulo: vivos > 1 ? `Nasceram ${vivos}!` : 'Nasceu!', texto:`${N(o.machos) ? N(o.machos) + (N(o.machos) > 1 ? ' machos' : ' macho') : ''}${N(o.machos) && N(o.femeas) ? ' e ' : ''}${N(o.femeas) ? N(o.femeas) + (N(o.femeas) > 1 ? ' fêmeas' : ' fêmea') : ''} no lote ${esc(nomeLote(o.loteId))}.<br>Com ${vivos > 1 ? 'esses' : 'esse'}, já são <b>${fmtN(n)} bezerros</b> em ${ano}.`};
+  }
+  if (tipo === 'chuva' && N(o.mm) >= 15){
+    const mes = S.lanc.filter(e => e.tipo === 'chuva' && e.data.startsWith(hoje().slice(0,7))).reduce((s,e) => s + N(e.mm), 0);
+    fest = {icone:'🌧️', titulo:'Chuva boa!', texto:`${fmtN(o.mm)} mm no pluviômetro.<br>No mês já são <b>${fmtN(mes)} mm</b>.`};
+  }
+  if (tipo === 'toque'){ const p = N(o.prenhes) / Math.max(1, N(o.prenhes) + N(o.vazias));
+    fest = {icone: p >= .8 ? '🎉' : '🩺', titulo:`${Math.round(p*100)}% prenhas`, texto:`${fmtN(o.prenhes)} prenhas e ${fmtN(o.vazias)} vazias no lote ${esc(nomeLote(o.loteId))}.${p >= .8 ? '<br>Toque de respeito!' : '<br>As vazias você anota em Vendeu / saiu, como descarte.'}`}; }
+  if ((tipo === 'saida' || tipo === 'desmama') && N(o.valor))
+    fest = {icone:'💵', titulo:'Venda anotada', texto:`${fmtN(tipo === 'saida' ? o.qtd : vivos)} cabeças por <b>${fmtR(o.valor)}</b>.`};
+  if (fest) await celebrar(fest);
+  await checarPremios();
+}
+
+/* ---------- previsão do tempo (Open-Meteo, gratuito, sem chave) ---------- */
+function wmo(c){
+  c = +c;
+  if (c === 0) return ['☀️','céu limpo']; if (c <= 2) return ['🌤️','poucas nuvens']; if (c === 3) return ['☁️','nublado'];
+  if (c <= 48) return ['🌫️','neblina']; if (c <= 57) return ['🌦️','garoa']; if (c <= 67) return ['🌧️','chuva'];
+  if (c <= 77) return ['🌨️','granizo']; if (c <= 82) return ['🌧️','pancadas']; return ['⛈️','trovoada'];
+}
+async function carregarClima(){
+  const c = S.config.centro || FAZENDA_CENTRO, key = 'manejo_clima';
+  try { const k = JSON.parse(localStorage.getItem(key) || 'null'); if (k && Date.now() - k.t < 36e5 && k.lat === c[0]){ S.clima = k.d; return; } } catch(e){}
+  try {
+    const u = `https://api.open-meteo.com/v1/forecast?latitude=${c[0]}&longitude=${c[1]}&current=temperature_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum,precipitation_probability_max&timezone=America%2FSao_Paulo&forecast_days=7`;
+    const r = await fetch(u); if (!r.ok) return;
+    S.clima = await r.json();
+    try { localStorage.setItem(key, JSON.stringify({t:Date.now(), lat:c[0], d:S.clima})); } catch(e){}
+    if (S.view === 'inicio') atualizar();
+  } catch(e){}
+}
+
+function textoResumo(){
+  const h = hoje(), ini = diasAtras(7), sem = ordenar(S.lanc.filter(e => e.data > ini && e.data <= h)), I = indicadores();
+  const so = t => sem.filter(e => e.tipo === t), soma = (arr, f) => arr.reduce((s,e) => s + N(f(e)), 0), L = [];
+  L.push(`*${S.config.nome || 'Fazenda'} · resumo de ${fmtD(somaDias(ini,1))} a ${fmtD(h)}*`, '');
+  const pa = so('parto');
+  if (pa.length) L.push(`🐮 Partos: ${soma(pa, e => N(e.machos)+N(e.femeas)+N(e.mortos))} (${soma(pa, e => e.machos)} machos, ${soma(pa, e => e.femeas)} fêmeas${soma(pa, e => e.mortos) ? ', ' + soma(pa, e => e.mortos) + ' natimortos' : ''})`);
+  const mo = so('morte');
+  if (mo.length) L.push(`✝️ Mortes: ${soma(mo, e => e.qtd)} (${mo.map(e => `${e.qtd} ${CATS_C[e.cat]} – ${e.causa}`).join('; ')})`);
+  const de = so('desmama'); if (de.length) L.push(`🌾 Desmama: ${soma(de, e => N(e.machos)+N(e.femeas))} bezerros`);
+  for (const e of so('toque')) L.push(`🩺 Toque ${nomeLote(e.loteId)}: ${e.prenhes} prenhas, ${e.vazias} vazias (${fmtP(N(e.prenhes)/(N(e.prenhes)+N(e.vazias)))})`);
+  const ve = [...so('saida'), ...de].filter(e => N(e.valor));
+  if (ve.length) L.push(`🚚 Vendas: ${soma(ve, e => e.tipo === 'saida' ? e.qtd : N(e.machos)+N(e.femeas))} cabeças · ${fmtR(soma(ve, e => e.valor))}`);
+  const outras = so('saida').filter(e => !N(e.valor)); if (outras.length) L.push(`↘️ Outras saídas: ${outras.map(e => `${e.qtd} ${CATS_C[e.cat]} (${e.motivo})`).join('; ')}`);
+  const ga = so('gasto');
+  if (ga.length){ const por = {}; for (const e of ga) por[e.gcat] = (por[e.gcat]||0) + N(e.valor);
+    L.push(`💰 Gastos: ${fmtR(soma(ga, e => e.valor))} (${Object.entries(por).sort((a,b) => b[1]-a[1]).map(([k,v]) => `${GASTOS[k]?.n || k} ${fmtR(v)}`).join(', ')})`); }
+  const ch = so('chuva'); L.push(`🌧️ Chuva: ${ch.length ? fmtN(soma(ch, e => e.mm)) + ' mm' : 'nenhuma registrada'}`);
+  const sa = so('sanitario'); if (sa.length) L.push(`🧪 Sanidade: ${sa.map(e => `${protPor(e.protId)?.nome || e.protNome} (${nomeLote(e.loteId)})`).join('; ')}`);
+  if (S.tarefas.length){
+    const prev = S.tarefas.filter(t => t.ativo !== false).reduce((s,t) => s + Math.max(1, Math.floor(7 / (N(t.freq) || 1))), 0);
+    const tk = so('tarefa'), prob = tk.filter(e => e.problema);
+    L.push(`✅ Tarefas: ${tk.length} baixas de ~${prev} previstas${prob.length ? ` (${prob.length} com problema)` : ''}`);
+    for (const e of prob) L.push(`   ⚠️ ${e.tarefaNome} (${fmtD(e.data)}): ${e.obs}`);
+  }
+  L.push('', `🐂 Rebanho hoje: ${fmtN(I.rebanho)} cabeças (${CAT_K.filter(c => I.tot[c]).map(c => `${fmtN(I.tot[c])} ${CATS_C[c]}`).join(', ')})`);
+  const A = alertas(I).filter(a => !/^Problema em/.test(a.t.replace(/<[^>]+>/g, '')));
+  if (A.length){ L.push('', `⚠️ Alertas (${A.length}):`); A.slice(0, 6).forEach(a => L.push('• ' + a.t.replace(/<[^>]+>/g, '').replace(/&amp;/g,'&'))); if (A.length > 6) L.push(`• e mais ${A.length - 6}…`); }
+  return L.join('\n');
+}
+function abrirResumo(){
+  const t = textoResumo();
+  const m = document.createElement('div'); m.className = 'modal';
+  m.innerHTML = `<div class="box"><h2>Resumo da semana</h2><textarea readonly style="min-height:46vh;font-size:14px">${esc(t)}</textarea>
+    <div class="acts"><button class="btn sec" data-a="copiar">Copiar</button><button class="btn" data-a="wa" style="background:#1f8f4e">Enviar no WhatsApp</button></div>
+    <button class="lnk" data-a="fechar" style="margin-top:10px;width:100%">Fechar</button></div>`;
+  m.onclick = async ev => {
+    const a = ev.target.dataset.a;
+    if (a === 'wa') window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+    if (a === 'copiar'){ try { await navigator.clipboard.writeText(t); toast('Resumo copiado'); } catch(e){ m.querySelector('textarea').select(); toast('Selecione e copie o texto'); } }
+    if (a === 'fechar' || ev.target === m){ m.remove(); atualizar(); }
+  };
+  document.body.appendChild(m);
+}
+/* ---------- anotar ---------- */
+function vLancar(){
+  const semLote = !S.lotes.filter(l => l.ativo !== false).length;
+  return `${semLote ? `<div class="banner">Cadastre um lote pra anotar nascimentos, mortes e o resto. <button class="lnk" data-go="cadastros">Ir pros cadastros</button></div>` : ''}
+    <div class="grid-ev">${Object.entries(EV).filter(([k,e]) => !e.oculto).map(([k,e]) => {
+      const off = semLote && !['gasto','chuva','sanitario'].includes(k);
+      return `<button class="ev" style="--c:${e.c}${off ? ';opacity:.45' : ''}" data-ev="${k}" ${off ? 'disabled' : ''}><span class="i" aria-hidden="true">${e.i}</span><span class="t">${e.n}</span><span class="d">${e.d}</span></button>`;
+    }).join('')}</div>`;
+}
+function ligarLancar(){
+  document.querySelectorAll('[data-ev]').forEach(b => b.onclick = () => abrirForm(b.dataset.ev));
+}
+function statusTarefas(){
+  const h = hoje();
+  return S.tarefas.filter(t => t.ativo !== false).map(t => {
+    const ult = S.lanc.filter(e => e.tipo === 'tarefa' && e.tarefaId === t.id).map(e => e.data).sort().pop() || null;
+    const f = N(t.freq) || 1, feito = !!ult && difDias(ult, h) < f;
+    const atraso = feito ? 0 : ult ? Math.max(0, difDias(somaDias(ult, f), h)) : 0;
+    return {t, ult, feito, atraso, f};
+  }).sort((a,b) => (a.feito - b.feito) || (b.atraso - a.atraso) || a.t.nome.localeCompare(b.t.nome));
+}
+function cardLida(){
+  const st = statusTarefas(), h = hoje();
+  if (!st.length) return `<div class="card"><h2>Lida de hoje</h2><p class="muted">Cadastre a rotina do vaqueiro (água, cocho, cerca…) e dê baixa aqui todo dia.</p><button class="btn sec sm" data-go="cadastros">Cadastrar a lida</button></div>`;
+  const feitas = st.filter(s => s.feito).length, tot = st.length, fr = feitas / tot, seq = sequenciaLida();
+  return `<div class="card"><h2>Lida de hoje ${feitas === tot ? '<span class="badge g">tudo feito</span>' : `<span class="badge a">${feitas} de ${tot}</span>`}</h2>
+    <div class="trilha" aria-hidden="true"><div class="ripa"></div>${[0,25,50,75].map(x => `<span class="poste" style="left:${x}%"></span>`).join('')}
+      <svg class="anda" viewBox="0 0 64 42" style="left:calc(${fr*100}% * .86)"><use href="#boi"/></svg><span class="curral">🏠</span></div>
+    ${seq >= 2 ? `<p class="hint" style="margin:-4px 0 6px">🔥 <b>${seq} dias seguidos</b> com a lida diária completa.</p>` : ''}
+    ${st.map(s => `<div class="tk ${s.feito ? 'feito' : ''}"><button class="ck" data-tk="${s.t.id}" aria-label="${s.feito ? 'Feito' : 'Dar baixa'}: ${esc(s.t.nome)}">${s.feito ? '✓' : ''}</button>
+      <div class="tx"><b>${esc(s.t.nome)}</b><small>${s.feito ? 'feito ' + (s.ult === h ? 'hoje' : 'em ' + fmtD(s.ult)) : s.atraso ? `<span style="color:var(--verm);font-weight:700">atrasada ${s.atraso} dia${s.atraso > 1 ? 's' : ''}</span>` : 'pra hoje'} · ${(FREQS[s.f] || 'a cada ' + s.f + ' dias').toLowerCase()}</small></div>
+      <button class="prob" data-tp="${s.t.id}">⚠️ Problema</button></div>`).join('')}</div>`;
+}
+function ligarLida(){
+  document.querySelectorAll('[data-tk]').forEach(b => b.onclick = async () => {
+    const t = S.tarefas.find(x => x.id === b.dataset.tk); if (!t) return;
+    if (b.closest('.tk').classList.contains('feito')) return toast('Já tá feita. Se algo deu errado, toque em Problema.');
+    const id = Store.add('lancamentos', {tipo:'tarefa', tarefaId:t.id, tarefaNome:t.nome, data:hoje(), loteId:null, ok:true, obs:'', criadoEm:Date.now(), por:usuarioAtual()});
+    toast(`${t.nome} ✓`, () => Store.remove('lancamentos', id));
+    const st = statusTarefas();
+    if (st.length && st.every(s => s.feito)) await celebrar({icone:'🤠', titulo:'Lida feita!', texto:`Tudo em ordem hoje.${sequenciaLida() >= 2 ? `<br><b>${sequenciaLida()} dias seguidos</b> de lida completa.` : ''}`});
+    await checarPremios();
+  });
+  document.querySelectorAll('[data-tp]').forEach(b => b.onclick = () => {
+    const t = S.tarefas.find(x => x.id === b.dataset.tp); if (!t) return;
+    modalForm('⚠️ ' + esc(t.nome), `<label class="f"><span>O que está errado?</span><textarea name="obs" placeholder="ex.: bebedouro do Pasto Grande vazando"></textarea></label>`, (fd, fm, err) => {
+      const obs = (fd.get('obs')||'').trim(); if (!obs) return err('Conte o que aconteceu.'), false;
+      Store.add('lancamentos', {tipo:'tarefa', tarefaId:t.id, tarefaNome:t.nome, data:hoje(), loteId:null, ok:false, problema:true, obs, criadoEm:Date.now(), por:usuarioAtual()});
+      toast('Problema anotado. Vai aparecer nos recados.');
+    }, 'Anotar problema');
+  });
+}
+function ligarInicio(){
+  ligarLida();
+  $('#resumo') && ($('#resumo').onclick = abrirResumo);
+  document.querySelectorAll('[data-pr]').forEach(b => b.onclick = () => verPremio(b.dataset.pr));
+  document.querySelectorAll('[data-al]').forEach(b => b.onclick = () => {
+    const a = alertas(indicadores())[+b.dataset.al]; if (a?.go) abrirForm('sanitario', {protId:a.go.prot, loteId:a.go.lote || ''});
+  });
+  if (!window.Chart) return;
+  Chart.defaults.font.family = "'Atkinson Hyperlegible', sans-serif"; Chart.defaults.font.size = 13; Chart.defaults.color = '#62584b';
+  const meses = ultimos12(), lbl = meses.map(m => MESES[+m.slice(5)-1]);
+  const opt = {responsive:true, maintainAspectRatio:false, plugins:{legend:{position:'bottom', labels:{boxWidth:14, font:{size:14}}}},
+    scales:{x:{stacked:true, grid:{display:false}}, y:{stacked:true, beginAtZero:true, ticks:{precision:0}}}};
+  const cp = $('#ch-p');
+  if (cp){
+    const s = {m: meses.map(()=>0), f: meses.map(()=>0), x: meses.map(()=>0)};
+    for (const e of S.lanc) if (e.tipo === 'parto'){ const i = meses.indexOf((e.data||'').slice(0,7)); if (i >= 0){ s.m[i] += N(e.machos); s.f[i] += N(e.femeas); s.x[i] += N(e.mortos); } }
+    charts.push(new Chart(cp, {type:'bar', data:{labels:lbl, datasets:[
+      {label:'Machos', data:s.m, backgroundColor:'#2c4f86', borderColor:'#2a231b', borderWidth:1.5},
+      {label:'Fêmeas', data:s.f, backgroundColor:'#f2b705', borderColor:'#2a231b', borderWidth:1.5},
+      {label:'Nasceram mortos', data:s.x, backgroundColor:'#a9a293', borderColor:'#2a231b', borderWidth:1.5}]}, options:opt}));
+  }
+  const cc = $('#ch-c');
+  if (cc){
+    const v = meses.map(() => 0);
+    for (const e of S.lanc) if (e.tipo === 'chuva'){ const i = meses.indexOf(e.data.slice(0,7)); if (i >= 0) v[i] += N(e.mm); }
+    charts.push(new Chart(cc, {type:'bar', data:{labels:lbl, datasets:[{label:'mm', data:v, backgroundColor:'#2c4f86', borderColor:'#2a231b', borderWidth:1.5}]},
+      options:{...opt, plugins:{legend:{display:false}}, scales:{x:{grid:{display:false}}, y:{beginAtZero:true}}}}));
+  }
+}
+
+/* ---------- mais ---------- */
+function vMais(){
+  const it = (go, i, t, d, id) => `<button class="mi" ${id ? `id="${id}"` : `data-go="${go}"`}><span class="ic" aria-hidden="true">${i}</span><span><b>${t}</b><small>${d}</small></span></button>`;
+  return it('historico','📒','Caderno','Tudo que foi anotado, com filtro e planilha do Excel')
+    + it('','📤','Resumo da semana','Monta o texto e manda no WhatsApp', 'm-resumo')
+    + it('cadastros','⚙️','Cadastros','Pastos, lotes, lida do vaqueiro e nome da fazenda');
+}
+function ligarMais(){ $('#m-resumo').onclick = abrirResumo; }
+
+const optLotes = (sel, vazio) => (vazio ? `<option value="">${vazio}</option>` : '<option value="">Escolha o lote…</option>') +
+  S.lotes.filter(l => l.ativo !== false).sort((a,b) => a.nome.localeCompare(b.nome)).map(l => `<option value="${l.id}" ${l.id===sel?'selected':''}>${esc(l.nome)}${pastoPor(l.pastoId) ? ' · ' + esc(pastoPor(l.pastoId).nome) : ''}</option>`).join('');
+const optCats = (sel, so) => (so || CAT_K).map(c => `<option value="${c}" ${c===sel?'selected':''}>${CATS[c]}</option>`).join('');
+const optLista = (arr, sel) => arr.map(x => `<option ${x===sel?'selected':''}>${esc(x)}</option>`).join('');
+const stepper = (name, lbl, v=0) => `<label class="f"><span>${lbl}</span><div class="step"><button type="button" data-d="-1">−</button><input type="number" inputmode="numeric" min="0" name="${name}" value="${v}"><button type="button" data-d="1">+</button></div></label>`;
+const campoValor = (name, lbl) => `<label class="f"><span>${lbl}</span><input type="text" inputmode="decimal" name="${name}" placeholder="0,00"><div class="hint" data-tot="${name}"></div></label>`;
+
+function vForm(){
+  const f = S.form, e = EV[f.tipo];
+  const modoLote = f.tipo === 'chuva' ? 'none' : ['gasto','sanitario'].includes(f.tipo) ? 'opt' : 'req';
+  const vazio = f.tipo === 'gasto' ? 'Geral da fazenda (sem lote)' : f.tipo === 'sanitario' ? 'Fazenda toda' : '';
+  let campos = '';
+  switch (f.tipo){
+    case 'parto': campos = `<div class="row2">${stepper('machos','Machos vivos',0)}${stepper('femeas','Fêmeas vivas',0)}</div>
+      <div class="row2">${stepper('mortos','Natimortos',0)}${stepper('primiparas','1º parto (novilha)',0)}</div>
+      <p class="hint" style="margin-top:-6px;margin-bottom:12px">Mãe novilha: o app passa ela de novilha para vaca automaticamente.</p>
+      <label class="f"><span>Brincos dos bezerros <em>opcional</em></span><input type="text" name="brincos" placeholder="ex.: 101, 102"></label>`; break;
+    case 'morte': campos = `<label class="f"><span>Categoria</span><select name="cat">${optCats('bezerro')}</select></label>
+      ${stepper('qtd','Quantidade',1)}<label class="f"><span>Causa</span><select name="causa">${optLista(CAUSAS)}</select></label>`; break;
+    case 'desmama': campos = `<div class="row2">${stepper('machos','Machos',0)}${stepper('femeas','Fêmeas',0)}</div>
+      <label class="f"><span>Peso médio (kg) <em>opcional</em></span><input type="number" inputmode="decimal" name="peso" placeholder="ex.: 180"></label>
+      <label class="f"><span>Para onde foram</span><select name="loteDestino">${optLotes('', 'Vendidos na desmama (saíram do rebanho)')}</select></label>
+      <div id="dv">${campoValor('valorCab', 'Valor por cabeça (R$)')}</div>`; break;
+    case 'toque': campos = `<div class="row2">${stepper('prenhes','Prenhas',0)}${stepper('vazias','Vazias',0)}</div>
+      <div class="hint" id="tq" style="margin:-4px 0 12px"></div>
+      <p class="hint" style="margin:-4px 0 12px">As vazias você descarta pelo lançamento <b>Venda / saída</b> (motivo Descarte).</p>`; break;
+    case 'sanitario': {
+      if (!S.protocolos.length) return `<button class="lnk" id="voltar">← Voltar</button><div class="card"><h2>Nenhum protocolo sanitário</h2><p class="muted">Cadastre os protocolos (vacinas, vermífugos, declaração) na aba Sanidade.</p><button class="btn" data-go="sanidade">Ir para Sanidade</button></div>`;
+      campos = `<label class="f"><span>Protocolo</span><select name="protId">${S.protocolos.map(p => `<option value="${p.id}" ${p.id===f.protId?'selected':''}>${esc(p.nome)}</option>`).join('')}</select></label>
+        ${stepper('qtd','Animais tratados <em>opcional</em>',0)}
+        <label class="f"><span>Produto / partida <em>opcional</em></span><input type="text" name="produto"></label>`; break;
+    }
+    case 'entrada': campos = `<label class="f"><span>Categoria</span><select name="cat">${optCats('vaca')}</select></label>
+      ${stepper('qtd','Quantidade',1)}<label class="f"><span>Motivo</span><select name="motivo">${optLista(MOT_ENT)}</select></label>`; break;
+    case 'saida': campos = `<label class="f"><span>Categoria</span><select name="cat">${optCats('recria')}</select></label>
+      ${stepper('qtd','Quantidade',1)}<label class="f"><span>Motivo</span><select name="motivo">${optLista(MOT_SAI)}</select></label>
+      <div id="sv">${campoValor('valorCab', 'Valor por cabeça (R$)')}</div>
+      <label class="f"><span>Peso médio (kg) <em>opcional</em></span><input type="number" inputmode="decimal" name="peso"></label>`; break;
+    case 'transferencia': campos = `<label class="f"><span>Categoria que sai</span><select name="cat">${optCats('recria')}</select></label>
+      ${stepper('qtd','Quantidade',1)}
+      <label class="f"><span>Lote de destino</span><select name="loteDestino">${optLotes('', 'O mesmo lote (só reclassificar)')}</select></label>
+      <label class="f"><span>Categoria no destino</span><select name="catDestino"><option value="">A mesma</option>${optCats('')}</select>
+      <div class="hint">Ex.: recria fêmea que virou novilha → categoria Novilhas.</div></label>`; break;
+    case 'contagem': campos = `<p class="hint" style="margin:-4px 0 10px">Digite o que foi contado no curral. Deixe em branco o que não contou. A contagem substitui o saldo daquela categoria.</p>
+      ${CAT_K.map(c => `<label class="f"><span>${CATS[c]}</span><input type="number" inputmode="numeric" min="0" name="ct_${c}" data-ct="${c}"></label>`).join('')}`; break;
+    case 'gasto': campos = `<div class="gcats">${Object.entries(GASTOS).map(([k,g],i) => `<label class="gc"><input type="radio" name="gcat" value="${k}" ${i===0?'checked':''}><span>${g.i} ${g.n}</span></label>`).join('')}</div>
+      ${campoValor('valor', 'Valor total (R$)')}
+      <div class="row2"><label class="f"><span>Quantidade <em>opcional</em></span><input type="number" inputmode="decimal" name="qtd"></label>
+      <label class="f"><span>Unidade</span><select name="unid"></select></label></div>`; break;
+    case 'chuva': campos = `<label class="f"><span>Chuva (mm)</span><input type="number" inputmode="decimal" name="mm" placeholder="ex.: 25"></label>`; break;
+  }
+  const base = `<label class="f"><span>Data</span><input type="date" name="data" value="${hoje()}" max="${hoje()}"></label>
+    ${modoLote === 'none' ? '' : `<label class="f" id="lw"><span>Lote</span><select name="loteId">${optLotes(f.loteId, vazio)}</select><div class="hint" id="saldo-h"></div></label>`}`;
+  return `<button class="lnk" id="voltar">← Voltar</button>
+    <div class="card" style="border-left:5px solid ${e.c}"><h2>${e.i} ${e.n}</h2>
+    <form id="fm" autocomplete="off">${base}${campos}
+    <label class="f"><span>Observação <em>opcional</em></span><textarea name="obs"></textarea></label>
+    <p class="warn" id="fm-err"></p><button class="btn" type="submit">Anotar</button></form></div>`;
+}
+function ligarForm(){
+  const fm = $('#fm'), tipo = S.form.tipo;
+  $('#voltar').onclick = () => irPara('lancar');
+  if (!fm) return;
+  fm.querySelectorAll('.step').forEach(st => st.querySelectorAll('button').forEach(b => b.onclick = () => {
+    const i = st.querySelector('input'); i.value = Math.max(0, N(i.value) + N(b.dataset.d)); i.dispatchEvent(new Event('input', {bubbles:true}));
+  }));
+  if (tipo === 'gasto'){
+    const unid = () => { const g = GASTOS[fm.querySelector('[name=gcat]:checked').value]; fm.unid.innerHTML = g.u.map(u => `<option>${u}</option>`).join(''); };
+    fm.querySelectorAll('[name=gcat]').forEach(r => r.addEventListener('change', unid)); unid();
+  }
+  const dica = () => {
+    const w = $('#fm-err'), h = $('#saldo-h'), l = fm.loteId?.value;
+    if (tipo === 'sanitario'){
+      const p = protPor(fm.protId.value);
+      $('#lw').style.display = p?.alvo === 'fazenda' ? 'none' : '';
+      if (p?.alvo === 'fazenda') fm.loteId.value = '';
+      h.textContent = p?.nota || '';
+      return;
+    }
+    if (tipo === 'saida' || tipo === 'desmama'){
+      const q = tipo === 'saida' ? N(fm.qtd.value) : N(fm.machos.value) + N(fm.femeas.value);
+      const vc = moeda(fm.valorCab.value);
+      fm.querySelector('[data-tot=valorCab]').textContent = vc && q ? `Total: ${fmtR(vc*q)}` : '';
+      if (tipo === 'desmama') $('#dv').style.display = fm.loteDestino.value ? 'none' : '';
+      if (tipo === 'saida') $('#sv').style.display = fm.motivo.value === 'Venda' || fm.motivo.value === 'Descarte' ? '' : 'none';
+    }
+    if (tipo === 'toque'){ const p = N(fm.prenhes.value), v = N(fm.vazias.value); $('#tq').textContent = p + v ? `Taxa de prenhez: ${fmtP(p/(p+v))}` : ''; }
+    if (!h) return;
+    if (!l || tipo === 'gasto'){ h.textContent = tipo === 'gasto' && !l ? 'Gasto geral, sem rateio por lote.' : ''; return; }
+    const c = saldos()[l] || {};
+    h.textContent = 'Saldo atual: ' + (CAT_K.filter(x => c[x]).map(x => `${fmtN(c[x])} ${CATS_C[x]}`).join(' · ') || 'sem animais lançados');
+    if (tipo === 'contagem') fm.querySelectorAll('[data-ct]').forEach(i => i.placeholder = c[i.dataset.ct] != null ? 'saldo: ' + fmtN(c[i.dataset.ct]) : '');
+    if (['morte','saida','transferencia'].includes(tipo)) w.textContent = N(fm.qtd.value) > (c[fm.cat.value]||0) ? `Atenção: o lote tem ${fmtN(c[fm.cat.value]||0)} ${CATS_C[fm.cat.value]} no sistema.` : '';
+    if (tipo === 'desmama') w.textContent = N(fm.machos.value)+N(fm.femeas.value) > (c.bezerro||0) ? `Atenção: o lote tem ${fmtN(c.bezerro||0)} bezerros ao pé no sistema.` : '';
+    if (tipo === 'toque') w.textContent = N(fm.prenhes.value)+N(fm.vazias.value) > (c.vaca||0)+(c.novilha||0) ? `Atenção: o lote tem ${fmtN((c.vaca||0)+(c.novilha||0))} matrizes no sistema.` : '';
+  };
+  fm.addEventListener('input', dica); fm.addEventListener('change', dica); dica();
+  fm.onsubmit = ev => {
+    ev.preventDefault();
+    const err = m => { $('#fm-err').textContent = m; };
+    const v = Object.fromEntries(new FormData(fm).entries());
+    const p = tipo === 'sanitario' ? protPor(v.protId) : null;
+    const loteOpc = ['gasto','chuva'].includes(tipo) || (tipo === 'sanitario' && p?.alvo === 'fazenda') || tipo === 'sanitario';
+    if (!v.loteId && !loteOpc) return err('Escolha o lote.');
+    if (!v.data) return err('Informe a data.');
+    const o = {tipo, data:v.data, loteId:v.loteId || null, obs:(v.obs||'').trim(), criadoEm:Date.now(), por:usuarioAtual()};
+    switch (tipo){
+      case 'parto':
+        Object.assign(o, {machos:N(v.machos), femeas:N(v.femeas), mortos:N(v.mortos), primiparas:N(v.primiparas), brincos:(v.brincos||'').trim()});
+        if (o.machos + o.femeas + o.mortos === 0) return err('Informe pelo menos um bezerro.');
+        if (o.primiparas > o.machos + o.femeas + o.mortos) return err('Mães novilhas não pode passar do total de partos.');
+        break;
+      case 'morte': Object.assign(o, {cat:v.cat, qtd:N(v.qtd), causa:v.causa}); if (!o.qtd) return err('Quantidade deve ser maior que zero.'); break;
+      case 'desmama': {
+        Object.assign(o, {machos:N(v.machos), femeas:N(v.femeas), peso:N(v.peso)||null, loteDestino:v.loteDestino||null});
+        if (!o.machos && !o.femeas) return err('Informe quantos foram desmamados.');
+        const vc = o.loteDestino ? 0 : moeda(v.valorCab);
+        if (vc){ o.valorCab = vc; o.valor = vc * (o.machos + o.femeas); }
+        break;
+      }
+      case 'toque': Object.assign(o, {prenhes:N(v.prenhes), vazias:N(v.vazias)}); if (!o.prenhes && !o.vazias) return err('Informe prenhas e vazias.'); break;
+      case 'sanitario': if (!p) return err('Escolha o protocolo.'); Object.assign(o, {protId:p.id, protNome:p.nome, qtd:N(v.qtd)||null, produto:(v.produto||'').trim()}); if (p.alvo === 'fazenda') o.loteId = null; break;
+      case 'entrada': Object.assign(o, {cat:v.cat, qtd:N(v.qtd), motivo:v.motivo}); if (!o.qtd) return err('Quantidade deve ser maior que zero.'); break;
+      case 'saida': {
+        Object.assign(o, {cat:v.cat, qtd:N(v.qtd), motivo:v.motivo, peso:N(v.peso)||null});
+        if (!o.qtd) return err('Quantidade deve ser maior que zero.');
+        const vc = ['Venda','Descarte'].includes(o.motivo) ? moeda(v.valorCab) : 0;
+        if (vc){ o.valorCab = vc; o.valor = vc * o.qtd; }
+        break;
+      }
+      case 'transferencia': Object.assign(o, {cat:v.cat, qtd:N(v.qtd), loteDestino:v.loteDestino||null, catDestino:v.catDestino||null});
+        if (!o.qtd) return err('Quantidade deve ser maior que zero.');
+        if (!o.loteDestino && !o.catDestino) return err('Escolha outro lote ou outra categoria.');
+        if (o.loteDestino === o.loteId && (!o.catDestino || o.catDestino === o.cat)) return err('Destino igual à origem.');
+        break;
+      case 'contagem': {
+        const ct = {}; for (const c of CAT_K){ const x = v['ct_' + c]; if (x !== '' && x != null) ct[c] = N(x); }
+        if (!Object.keys(ct).length) return err('Digite pelo menos uma categoria.');
+        o.contagens = ct; break;
+      }
+      case 'gasto': Object.assign(o, {gcat:v.gcat, valor:moeda(v.valor), qtd:N(v.qtd)||null, unid:v.unid||''});
+        if (!(o.valor > 0)) return err('Informe o valor do gasto.'); break;
+      case 'chuva': o.mm = N(v.mm); if (!(o.mm > 0)) return err('Informe os milímetros.'); break;
+    }
+    const id = Store.add('lancamentos', o);
+    if (o.loteId && !['gasto','sanitario'].includes(tipo)) try { localStorage.setItem('manejo_ultimo_lote', o.loteId); } catch(e){}
+    const volta = tipo === 'sanitario' && S.form.voltar ? S.form.voltar : 'lancar';
+    S.view = volta; S.form = null; render();
+    posSalvar(tipo, o, id);
+  };
+}
+
+/* ---------- sanidade ---------- */
+function vSan(){
+  const st = statusSanidade();
+  const temPreset = S.protocolos.some(p => p.preset?.startsWith('go-'));
+  const cards = [...S.protocolos].sort((a,b) => (b.obrig?1:0) - (a.obrig?1:0) || a.nome.localeCompare(b.nome)).map(p => {
+    const ss = st.filter(s => s.p.id === p.id);
+    const freq = p.modo === 'meses' ? 'Todo ano em ' + (p.meses||[]).map(m => MESES[m-1]).join(' e ') : `A cada ${fmtN(p.dias)} dias`;
+    const alvo = p.alvo === 'fazenda' ? 'Fazenda toda' : (p.cats||[]).map(c => CATS_C[c]).join(', ');
+    return `<div class="card"><div style="display:flex;justify-content:space-between;gap:8px;align-items:flex-start">
+        <div><h2 style="margin-bottom:2px">${esc(p.nome)}</h2><span class="badge ${p.obrig ? 'r' : 'n'}">${p.obrig ? 'obrigatória' : 'recomendada'}</span> <small class="muted">${freq} · ${esc(alvo)}</small></div>
+        <button class="x lnk" data-pe="${p.id}" style="color:var(--mute)">Editar</button></div>
+      ${p.nota ? `<p class="hint">${esc(p.nota)}</p>` : ''}
+      ${ss.length ? ss.map(s => `<div class="sn"><div><b>${esc(nomeLote(s.alvo))}</b><br><small class="muted">${s.ult ? 'último: ' + fmtD(s.ult) + ' · ' : ''}${esc(s.rot)}</small></div>
+        <div style="text-align:right"><span class="badge ${SEM_SAN[s.estado]}">${TXT_SAN[s.estado]}</span><br><button class="lnk" data-reg="${p.id}|${s.alvo || ''}">Registrar</button></div></div>`).join('')
+        : '<p class="hint">Nenhum lote com essas categorias no momento.</p>'}
+    </div>`;
+  }).join('');
+  return `${!temPreset ? `<div class="card"><h2>Calendário de Goiás</h2><p class="muted">Carrega os protocolos da Agrodefesa: <b>brucelose</b> (obrigatória, bezerras de 3 a 8 meses), <b>declaração de rebanho</b> (obrigatória, maio e novembro) e <b>raiva</b> (recomendada). Aftosa não é mais vacinada em GO.</p>
+      <button class="btn" id="go-preset" style="margin-top:10px">Carregar calendário de Goiás</button></div>` : ''}
+    ${cards || '<div class="empty">Nenhum protocolo ainda.</div>'}
+    <button class="btn sec" id="novo-prot">+ Novo protocolo (vermífugo, clostridiose…)</button>
+    <p class="hint" style="padding:6px 4px">Intervalos e produtos de vermífugos e outras vacinas devem seguir a orientação do seu veterinário.</p>`;
+}
+function ligarSan(){
+  $('#go-preset') && ($('#go-preset').onclick = () => {
+    for (const p of PRESET_GO) if (!S.protocolos.some(x => x.preset === p.preset)) Store.add('protocolos', {...p, criadoEm:Date.now()});
+    toast('Calendário de Goiás carregado');
+  });
+  $('#novo-prot').onclick = () => editarProt();
+  document.querySelectorAll('[data-pe]').forEach(b => b.onclick = () => editarProt(protPor(b.dataset.pe)));
+  document.querySelectorAll('[data-reg]').forEach(b => b.onclick = () => { const [pid, lid] = b.dataset.reg.split('|'); abrirForm('sanitario', {protId:pid, loteId:lid, voltar:'sanidade'}); });
+}
+function editarProt(p){
+  const x = p || {alvo:'cats', cats:[], modo:'intervalo', dias:180, meses:[], obrig:false};
+  modalForm(p ? 'Editar protocolo' : 'Novo protocolo', `
+    <label class="f"><span>Nome</span><input type="text" name="nome" value="${esc(x.nome||'')}" placeholder="ex.: Vermífugo"></label>
+    <label class="f"><span>Aplica-se a</span><select name="alvo"><option value="cats" ${x.alvo!=='fazenda'?'selected':''}>Categorias de animais</option><option value="fazenda" ${x.alvo==='fazenda'?'selected':''}>Fazenda toda (tarefa, declaração)</option></select></label>
+    <div class="chk" id="pc">${CAT_K.map(c => `<label><input type="checkbox" name="cats" value="${c}" ${(x.cats||[]).includes(c)?'checked':''}>${CATS[c]}</label>`).join('')}</div>
+    <label class="f"><span>Frequência</span><select name="modo"><option value="intervalo" ${x.modo!=='meses'?'selected':''}>A cada X dias</option><option value="meses" ${x.modo==='meses'?'selected':''}>Em meses fixos do ano</option></select></label>
+    <label class="f" id="pd"><span>Intervalo (dias)</span><input type="number" inputmode="numeric" name="dias" value="${esc(x.dias||'')}"></label>
+    <div class="chk" id="pm">${MESES.map((m,i) => `<label><input type="checkbox" name="meses" value="${i+1}" ${(x.meses||[]).map(Number).includes(i+1)?'checked':''}>${m}</label>`).join('')}</div>
+    <label class="f" style="display:flex;gap:8px;align-items:center"><input type="checkbox" name="obrig" ${x.obrig?'checked':''} style="width:20px;height:20px">Obrigatória</label>
+    <label class="f"><span>Observação</span><textarea name="nota">${esc(x.nota||'')}</textarea></label>
+    ${p ? `<button type="button" class="btn del sm" id="pdel">Excluir protocolo</button>` : ''}`,
+  (fd, fm, err) => {
+    const o = {nome:(fd.get('nome')||'').trim(), alvo:fd.get('alvo'), cats:fd.getAll('cats'), modo:fd.get('modo'), dias:N(fd.get('dias')), meses:fd.getAll('meses').map(Number), obrig:!!fd.get('obrig'), nota:(fd.get('nota')||'').trim()};
+    if (!o.nome) return err('Dê um nome ao protocolo.'), false;
+    if (o.alvo === 'cats' && !o.cats.length) return err('Marque pelo menos uma categoria.'), false;
+    if (o.modo === 'intervalo' && !(o.dias > 0)) return err('Informe o intervalo em dias.'), false;
+    if (o.modo === 'meses' && !o.meses.length) return err('Marque pelo menos um mês.'), false;
+    if (p) Store.update('protocolos', p.id, o); else Store.add('protocolos', {...o, criadoEm:Date.now()});
+  }, 'Salvar', fm => {
+    const tg = () => { fm.querySelector('#pc').style.display = fm.alvo.value === 'fazenda' ? 'none' : ''; fm.querySelector('#pd').style.display = fm.modo.value === 'meses' ? 'none' : ''; fm.querySelector('#pm').style.display = fm.modo.value === 'meses' ? '' : 'none'; };
+    fm.alvo.onchange = tg; fm.modo.onchange = tg; tg();
+    const d = fm.querySelector('#pdel');
+    if (d) d.onclick = async () => { fm.closest('.modal').remove(); if (await confirmar(`Excluir o protocolo ${p.nome}? Os registros já lançados continuam no histórico.`)) Store.remove('protocolos', p.id); };
+  });
+}
+
+/* ---------- mapa ---------- */
+const distM = (a, b) => { const R = 6371008.8, r = Math.PI/180, dLat = (b[1]-a[1])*r, dLon = (b[0]-a[0])*r;
+  const x = Math.sin(dLat/2)**2 + Math.cos(a[1]*r)*Math.cos(b[1]*r)*Math.sin(dLon/2)**2; return 2*R*Math.asin(Math.sqrt(x)); };
+const compM = c => c.slice(1).reduce((s, p, i) => s + distM(c[i], p), 0);
+function listaBenf(){
+  if (!S.benf.length) return '<p class="hint">Nenhuma benfeitoria marcada ainda.</p>';
+  const cercas = S.benf.filter(b => b.tipo === 'cerca');
+  const totM = cercas.reduce((s,b) => s + N(b.metros), 0), arame = cercas.reduce((s,b) => s + N(b.metros)*N(b.fios), 0);
+  const ord = [...S.benf].sort((a,b) => (a.tipo === 'cerca' ? 0 : 1) - (b.tipo === 'cerca' ? 0 : 1) || (a.nome||'').localeCompare(b.nome||''));
+  return (cercas.length ? `<div class="banner" style="background:#fdf1e2;border-color:#f0cfa2;color:#7a4d12">Cercas: <b>${fmtN(totM)} m</b>${arame ? ` · arame: <b>${fmtN(arame)} m</b>` : ''}${cercas.some(b => !N(b.fios)) ? ' · informe os fios para calcular o arame de todas' : ''}</div>` : '') +
+    ord.map(b => `<div class="item"><div class="ic" style="background:#f3ebe0">${BENF[b.tipo]?.i || '📌'}</div><div class="tx"><b>${esc(b.nome || BENF[b.tipo]?.n)}</b>
+      <small>${BENF[b.tipo]?.n || ''}${b.metros ? ' · ' + fmtN(b.metros) + ' m' : ''}${N(b.fios) ? ` · ${b.fios} fios${b.arame ? ' ' + esc(b.arame) : ''} = ${fmtN(N(b.metros)*N(b.fios))} m de arame` : ''}${b.obs ? ' · ' + esc(b.obs) : ''}</small></div>
+      <button class="lnk" data-bv="${b.id}">Ver</button><button class="x" data-bd="${b.id}">✕</button></div>`).join('');
+}
+function vMapa(){
+  if (!window.L) return '<div class="card"><h2>Mapa indisponível</h2><p class="muted">A biblioteca do mapa não carregou. Verifique a internet e abra de novo.</p></div>';
+  const lim = parseGeo(S.config.limite);
+  return `<div class="card" style="padding:0;overflow:hidden;position:relative"><div id="map"></div>
+      <button id="mp-gps" class="btn sm in" style="position:absolute;right:10px;top:10px;z-index:600;background:#fff;color:var(--verde);box-shadow:0 2px 8px rgba(0,0,0,.25)">📍</button>
+      <div id="mp-msg" style="display:none;position:absolute;left:56px;right:60px;top:10px;z-index:600;background:rgba(34,40,31,.88);color:#fff;border-radius:10px;padding:8px 10px;font-size:13px"></div>
+      <div class="drawbar" id="mp-bar" style="position:absolute;left:10px;right:10px;bottom:22px;z-index:600"><button class="btn sm sec" id="mp-undo">↶ Ponto</button><button class="btn sm del" id="mp-cancel">Cancelar</button><button class="btn sm" id="mp-ok">Concluir</button></div></div>
+    <div class="card"><h2>Pastos</h2>
+      <label class="f"><span>Pasto</span><select id="mp-p"></select></label>
+      <div class="row2"><button class="btn sm" id="mp-draw">✏️ Desenhar</button><button class="btn sm sec" id="mp-del">Apagar desenho</button></div>
+      <p class="hint">Toque em "Desenhar" e depois nos cantos do pasto no mapa, em volta. A área em hectares é calculada sozinha e vai para o cadastro do pasto.</p></div>
+    <div class="card"><h2>Benfeitorias</h2>
+      <div class="row2" style="margin-bottom:10px"><button class="btn sm sec" id="bf-ponto">📍 Marcar ponto</button><button class="btn sm sec" id="bf-cerca">〰️ Desenhar cerca</button></div>
+      <div id="bf-lista">${listaBenf()}</div>
+      <p class="hint">Pontos: cocho, bebedouro, represa, curral, porteira, sede. Cerca: o app mede os metros e, com o número de fios, calcula o arame.</p></div>
+    <div class="card"><h2>Limite da fazenda</h2>
+      ${lim ? `<p class="muted">Limite importado: <b>${fmtN(areaHa(lim),1)} ha</b>${S.config.limiteNome ? ' · ' + esc(S.config.limiteNome) : ''}</p>` : '<p class="muted">Importe o arquivo do CAR (shapefile .zip baixado em consulta.car.gov.br), um KML ou GeoJSON.</p>'}
+      <input type="file" id="mp-file" accept=".zip,.kml,.geojson,.json" style="display:none">
+      <button class="btn sec sm" id="mp-imp" style="margin-top:8px">${lim ? 'Trocar arquivo do limite' : 'Importar limite (CAR .zip, KML, GeoJSON)'}</button>
+      ${lim ? '<button class="lnk" id="mp-rlim" style="color:var(--verm);margin-top:6px">Remover limite</button>' : ''}
+      <label class="f" style="margin-top:14px"><span>Localização da sede (coordenadas ou link do Google Maps)</span><input type="text" id="mp-loc" placeholder="-16.6799, -49.2550" value="${esc((S.config.centro || FAZENDA_CENTRO).join(', '))}"></label>
+      <button class="btn sec sm" id="mp-locb">Salvar localização</button></div>`;
+}
+function atualizarSelPastos(){
+  const sel = $('#mp-p'); if (!sel) return;
+  const v = sel.value;
+  sel.innerHTML = [...S.pastos].sort((a,b) => a.nome.localeCompare(b.nome)).map(p => `<option value="${p.id}">${esc(p.nome)}${p.geo ? ' ✓' : ''}${p.area ? ' · ' + fmtN(p.area,1) + ' ha' : ''}</option>`).join('') + '<option value="__novo">+ Novo pasto (desenhar e dar nome)</option>';
+  if ([...sel.options].some(o => o.value === v)) sel.value = v;
+  const bl = $('#bf-lista'); if (bl) bl.innerHTML = listaBenf();
+}
+function desenharCamadas(){
+  if (!mapa) return;
+  camadas.clearLayers();
+  const lim = parseGeo(S.config.limite);
+  if (lim) L.geoJSON(lim, {style:{color:'#ffd400', weight:3, fill:false, dashArray:'6 4'}, interactive:false}).addTo(camadas);
+  const lot = Object.fromEntries(lotacao(saldos()).map(x => [x.p.id, x]));
+  for (const p of S.pastos){
+    const g = parseGeo(p.geo); if (!g) continue;
+    const x = lot[p.id], cor = x && x.sem !== 'n' ? COR_SEM[x.sem] : '#ffffff';
+    const info = x && x.lotes.length ? `${fmtN(x.cab)} cab · ${x.uaha != null ? fmtN(x.uaha,2) + ' UA/ha' : ''}` : 'vazio';
+    L.geoJSON(g, {style:{color:cor, weight:2, fillColor:cor, fillOpacity:x?.lotes.length ? .35 : .12}})
+      .bindTooltip(`${esc(p.nome)}<br>${fmtN(p.area,1)} ha · ${info}`, {permanent:true, direction:'center', className:'lbl'}).addTo(camadas);
+  }
+  for (const b of S.benf){
+    const g = parseGeo(b.geo); if (!g) continue;
+    if (g.type === 'Point') L.marker([g.coordinates[1], g.coordinates[0]], {icon:L.divIcon({className:'', html:`<div class="pin">${BENF[b.tipo]?.i || '📌'}</div>`, iconSize:[26,26], iconAnchor:[13,13]})})
+      .bindTooltip(esc(b.nome || BENF[b.tipo]?.n), {direction:'top', offset:[0,-10]}).addTo(camadas);
+    else L.geoJSON(g, {style:{color:'#f2a33a', weight:4}}).bindTooltip(`${esc(b.nome || 'Cerca')} · ${fmtN(b.metros)} m`).addTo(camadas);
+  }
+  if (desenho?.layer) camadas.addLayer(desenho.layer);
+}
+function enquadrar(){
+  if (camadas.getLayers().length){ const b = camadas.getBounds(); if (b.isValid()){ mapa.fitBounds(b, {padding:[20,20], maxZoom:17}); return; } }
+  mapa.setView(S.config.centro || FAZENDA_CENTRO, 15);
+}
+function ligarMapa(){
+  if (!window.L) return;
+  mapa = L.map('map', {zoomControl:true, attributionControl:true});
+  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {maxZoom:19, attribution:'Imagens © Esri'}).addTo(mapa);
+  camadas = L.featureGroup().addTo(mapa);
+  atualizarSelPastos(); desenharCamadas(); enquadrar();
+  setTimeout(() => mapa && mapa.invalidateSize(), 200);
+
+  const BTN = ['#mp-draw','#mp-del','#bf-ponto','#bf-cerca','#mp-p','#mp-imp'];
+  const msg = t => { const m = $('#mp-msg'); m.style.display = t ? '' : 'none'; m.textContent = t || ''; };
+  const geoPts = (pts, fechar) => { const c = pts.map(p => [+p.lng.toFixed(7), +p.lat.toFixed(7)]); return fechar ? {type:'Polygon', coordinates:[[...c, c[0]]]} : {type:'LineString', coordinates:c}; };
+  const atualiza = () => {
+    if (!desenho?.layer) return;
+    desenho.layer.setLatLngs(desenho.pts);
+    const n = desenho.pts.length, min = desenho.kind === 'pasto' ? 3 : 2;
+    const ok = $('#mp-ok'); ok.disabled = n < min;
+    ok.textContent = n < min ? `Concluir (${n}/${min})` : desenho.kind === 'pasto' ? `Concluir · ${fmtN(areaHa(geoPts(desenho.pts, true)),1)} ha` : `Concluir · ${fmtN(compM(geoPts(desenho.pts).coordinates))} m`;
+  };
+  const iniciar = kind => {
+    desenho = {kind, pts:[], layer: kind === 'pasto' ? L.polygon([], {color:'#ffffff', weight:3, dashArray:'4 4', fillOpacity:.2, interactive:false})
+      : kind === 'cerca' ? L.polyline([], {color:'#ffffff', weight:3, dashArray:'4 4', interactive:false}) : null};
+    if (desenho.layer) camadas.addLayer(desenho.layer);
+    mapa.doubleClickZoom.disable();
+    window.scrollTo({top:0, behavior:'smooth'});
+    BTN.forEach(s => { const e = $(s); if (e) e.disabled = true; });
+    $('#mp-bar').classList.toggle('on', kind !== 'ponto');
+    if (kind === 'ponto'){ $('#mp-bar').classList.add('on'); $('#mp-undo').style.visibility = 'hidden'; $('#mp-ok').style.visibility = 'hidden'; }
+    msg(kind === 'ponto' ? 'Toque no mapa onde fica o ponto.' : kind === 'cerca' ? 'Toque ao longo da cerca, ponto por ponto.' : 'Toque nos cantos do pasto, em volta.');
+    atualiza();
+  };
+  const sair = () => {
+    if (desenho?.layer) camadas.removeLayer(desenho.layer);
+    desenho = null; mapa.doubleClickZoom.enable(); msg('');
+    $('#mp-bar').classList.remove('on'); $('#mp-undo').style.visibility = ''; $('#mp-ok').style.visibility = '';
+    BTN.forEach(s => { const e = $(s); if (e) e.disabled = false; });
+    desenharCamadas();
+  };
+  const concluir = () => {
+    const d = desenho; if (!d) return;
+    if (d.kind === 'pasto'){
+      if (d.pts.length < 3) return;
+      const geo = geoPts(d.pts, true), area = +areaHa(geo).toFixed(2), alvo = $('#mp-p').value;
+      sair();
+      if (alvo === '__novo') modalForm('Nome do pasto', `<label class="f"><span>Nome</span><input type="text" name="nome" required></label><p class="hint">Área desenhada: ${fmtN(area,2)} ha</p>`, fd => {
+        const nome = (fd.get('nome')||'').trim(); if (!nome) return false;
+        Store.add('pastos', {nome, area, geo:JSON.stringify(geo), criadoEm:Date.now()}); toast(`Pasto ${nome}: ${fmtN(area,1)} ha`);
+      });
+      else { Store.update('pastos', alvo, {geo:JSON.stringify(geo), area}); toast(`Área atualizada: ${fmtN(area,1)} ha`); }
+    } else if (d.kind === 'cerca'){
+      if (d.pts.length < 2) return;
+      const geo = geoPts(d.pts), metros = Math.round(compM(geo.coordinates));
+      sair();
+      modalForm(`Cerca · ${fmtN(metros)} m`, `<label class="f"><span>Nome</span><input type="text" name="nome" placeholder="ex.: Divisa norte"></label>
+        <div class="row2"><label class="f"><span>Fios de arame <em>opcional</em></span><input type="number" inputmode="numeric" name="fios" placeholder="ex.: 4"></label>
+        <label class="f"><span>Arame</span><select name="arame"><option value="">—</option><option>farpado</option><option>liso</option></select></label></div>
+        <label class="f"><span>Observação</span><input type="text" name="obs" placeholder="ex.: precisa trocar mourões"></label>`, fd => {
+        Store.add('benfeitorias', {tipo:'cerca', nome:(fd.get('nome')||'').trim() || 'Cerca', metros, fios:N(fd.get('fios'))||null, arame:fd.get('arame')||'', obs:(fd.get('obs')||'').trim(), geo:JSON.stringify(geo), criadoEm:Date.now()});
+        toast(`Cerca salva: ${fmtN(metros)} m`);
+      });
+    }
+  };
+  mapa.on('click', e => {
+    if (!desenho) return;
+    if (desenho.kind === 'ponto'){
+      const geo = {type:'Point', coordinates:[+e.latlng.lng.toFixed(7), +e.latlng.lat.toFixed(7)]};
+      sair();
+      modalForm('Marcar ponto', `<label class="f"><span>O que é</span><select name="tipo">${Object.entries(BENF).filter(([k]) => k !== 'cerca').map(([k,b]) => `<option value="${k}">${b.i} ${b.n}</option>`).join('')}</select></label>
+        <label class="f"><span>Nome <em>opcional</em></span><input type="text" name="nome" placeholder="ex.: Cocho do Pasto Grande"></label>
+        <label class="f"><span>Observação</span><input type="text" name="obs"></label>`, fd => {
+        Store.add('benfeitorias', {tipo:fd.get('tipo'), nome:(fd.get('nome')||'').trim(), obs:(fd.get('obs')||'').trim(), geo:JSON.stringify(geo), criadoEm:Date.now()});
+        toast('Ponto marcado');
+      });
+      return;
+    }
+    desenho.pts.push(e.latlng); atualiza();
+  });
+  $('#mp-draw').onclick = () => iniciar('pasto');
+  $('#bf-cerca').onclick = () => iniciar('cerca');
+  $('#bf-ponto').onclick = () => iniciar('ponto');
+  $('#mp-undo').onclick = () => { desenho?.pts.pop(); atualiza(); };
+  $('#mp-cancel').onclick = sair;
+  $('#mp-ok').onclick = concluir;
+  $('#bf-lista').onclick = async ev => {
+    const v = ev.target.closest('[data-bv]'), d = ev.target.closest('[data-bd]');
+    if (v){ const b = S.benf.find(x => x.id === v.dataset.bv), g = parseGeo(b?.geo); if (!g) return;
+      window.scrollTo({top:0, behavior:'smooth'});
+      if (g.type === 'Point') mapa.setView([g.coordinates[1], g.coordinates[0]], 17); else mapa.fitBounds(L.geoJSON(g).getBounds(), {padding:[30,30]}); }
+    if (d){ const b = S.benf.find(x => x.id === d.dataset.bd); if (b && await confirmar(`Excluir ${b.nome || BENF[b.tipo]?.n}?`)) Store.remove('benfeitorias', b.id); }
+  };
+  $('#mp-del').onclick = async () => {
+    const p = pastoPor($('#mp-p').value); if (!p?.geo) return toast('Esse pasto ainda não tem desenho.');
+    if (await confirmar(`Apagar o desenho do pasto ${p.nome}? A área cadastrada continua.`, 'Apagar')) Store.update('pastos', p.id, {geo:null});
+  };
+  $('#mp-gps').onclick = () => { mapa.locate({setView:true, maxZoom:17}); };
+  mapa.on('locationfound', e => { L.circleMarker(e.latlng, {radius:8, color:'#fff', weight:3, fillColor:'#2b7bff', fillOpacity:1}).addTo(mapa); });
+  mapa.on('locationerror', () => toast('Não foi possível pegar a localização. Libere o GPS no navegador.'));
+  $('#mp-imp').onclick = () => $('#mp-file').click();
+  $('#mp-file').onchange = async ev => { const f = ev.target.files[0]; ev.target.value = ''; if (f) importarLimite(f); };
+  $('#mp-rlim') && ($('#mp-rlim').onclick = async () => { if (await confirmar('Remover o limite da fazenda do mapa?', 'Remover')) Store.setConfig({limite:null, limiteNome:null}); });
+  $('#mp-locb').onclick = () => {
+    const t = $('#mp-loc').value;
+    const m = t.match(/(-?\d{1,2}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/) || t.match(/(-?\d{1,2},\d+)\s*[;\s]\s*(-?\d{1,3},\d+)/);
+    if (!m) return toast('Não reconheci as coordenadas. Ex.: -16.6799, -49.2550');
+    const c = [N(m[1]), N(m[2])];
+    if (Math.abs(c[0]) > 35 || Math.abs(c[1]) > 75) return toast('Coordenadas fora do Brasil?');
+    Store.setConfig({centro:c}); mapa.setView(c, 15); toast('Localização salva');
+  };
+}
+async function importarLimite(f){
+  try {
+    const nome = f.name.toLowerCase();
+    let fcs = [];
+    if (nome.endsWith('.zip')){
+      if (!window.shp) return toast('Leitor de shapefile não carregou.');
+      const r = await shp(await f.arrayBuffer()); fcs = Array.isArray(r) ? r : [r];
+    } else if (nome.endsWith('.kml')){
+      if (!window.toGeoJSON) return toast('Leitor de KML não carregou.');
+      fcs = [toGeoJSON.kml(new DOMParser().parseFromString(await f.text(), 'text/xml'))];
+    } else {
+      const j = JSON.parse(await f.text()); fcs = [j.type === 'FeatureCollection' ? j : {type:'FeatureCollection', features:[j.type === 'Feature' ? j : {type:'Feature', geometry:j}]}];
+    }
+    /* no CAR, o perímetro do imóvel vem num shapefile com "AREA_IMOVEL" no nome */
+    const escolhido = fcs.find(fc => /area_imovel|imovel/i.test(fc.fileName || '')) || fcs.find(fc => fc.features?.some(ft => /Polygon/.test(ft.geometry?.type))) || fcs[0];
+    const polys = [];
+    for (const ft of escolhido?.features || []){
+      const g = ft.geometry; if (!g) continue;
+      if (g.type === 'Polygon') polys.push(g.coordinates.map(r => r.map(c => c.slice(0,2))));
+      if (g.type === 'MultiPolygon') g.coordinates.forEach(p => polys.push(p.map(r => r.map(c => c.slice(0,2)))));
+    }
+    if (!polys.length) return toast('Não achei nenhum polígono no arquivo.');
+    const geo = polys.length === 1 ? {type:'Polygon', coordinates:polys[0]} : {type:'MultiPolygon', coordinates:polys};
+    Store.setConfig({limite:JSON.stringify(geo), limiteNome:f.name});
+    toast(`Limite importado: ${fmtN(areaHa(geo),1)} ha`);
+    render();
+  } catch(e){ toast('Não consegui ler o arquivo: ' + e.message); }
+}
+
+/* ---------- histórico ---------- */
+function resumo(e){
+  const cn = c => CATS_C[c] || c;
+  switch (e.tipo){
+    case 'parto': return `${N(e.machos)} ♂ · ${N(e.femeas)} ♀` + (N(e.mortos) ? ` · ${N(e.mortos)} natimorto(s)` : '') + (N(e.primiparas) ? ` · ${N(e.primiparas)} mãe(s) novilha` : '') + (e.brincos ? ` · brincos ${esc(e.brincos)}` : '');
+    case 'morte': return `${fmtN(e.qtd)} ${cn(e.cat)} · ${esc(e.causa)}`;
+    case 'desmama': return `${N(e.machos)+N(e.femeas)} bezerros (${N(e.machos)} ♂ ${N(e.femeas)} ♀)` + (e.peso ? ` · ${fmtN(e.peso)} kg` : '') + ` → ${e.loteDestino ? esc(nomeLote(e.loteDestino)) : 'vendidos'}` + (e.valor ? ` · ${fmtR(e.valor)}` : '');
+    case 'toque': return `${fmtN(e.prenhes)} prenhas · ${fmtN(e.vazias)} vazias · ${fmtP(N(e.prenhes)/(N(e.prenhes)+N(e.vazias)))}`;
+    case 'sanitario': return `${esc(protPor(e.protId)?.nome || e.protNome || 'protocolo')}` + (e.qtd ? ` · ${fmtN(e.qtd)} animais` : '') + (e.produto ? ` · ${esc(e.produto)}` : '');
+    case 'entrada': return `+${fmtN(e.qtd)} ${cn(e.cat)} · ${esc(e.motivo)}`;
+    case 'saida': return `−${fmtN(e.qtd)} ${cn(e.cat)} · ${esc(e.motivo)}` + (e.valor ? ` · ${fmtR(e.valor)} (${fmtR(e.valorCab)}/cab)` : '') + (e.peso ? ` · ${fmtN(e.peso)} kg` : '');
+    case 'transferencia': return `${fmtN(e.qtd)} ${cn(e.cat)} → ${e.loteDestino ? esc(nomeLote(e.loteDestino)) : 'mesmo lote'}${e.catDestino && e.catDestino !== e.cat ? ' como ' + cn(e.catDestino) : ''}`;
+    case 'contagem': return Object.entries(e.contagens || {}).map(([c,n]) => `${fmtN(n)} ${cn(c)}`).join(' · ');
+    case 'gasto': return `${GASTOS[e.gcat]?.i||''} ${esc(GASTOS[e.gcat]?.n||e.gcat)} · <b style="display:inline">${fmtR(e.valor)}</b>` + (e.qtd ? ` · ${fmtN(e.qtd)} ${esc(e.unid)}` : '');
+    case 'chuva': return `${fmtN(e.mm,1)} mm`;
+    case 'tarefa': return `${esc(e.tarefaNome)} · ${e.problema ? '⚠️ problema' : 'feita'}`;
+  }
+  return '';
+}
+function vHist(){
+  const F = S.filtro;
+  const lista = ordenar(S.lanc).reverse().filter(e => (!F.lote || e.loteId === F.lote || e.loteDestino === F.lote) && (!F.tipo || e.tipo === F.tipo));
+  const itens = lista.slice(0, 300).map(e => `<div class="item"><div class="ic" style="background:${EV[e.tipo]?.c}22">${EV[e.tipo]?.i||'•'}</div>
+    <div class="tx"><b>${EV[e.tipo]?.n||e.tipo}${['chuva','tarefa'].includes(e.tipo) ? '' : ' · ' + esc(e.tipo === 'gasto' && !e.loteId ? 'Geral' : nomeLote(e.loteId))}</b><span>${resumo(e)}</span><br><small>${fmtD(e.data)}${e.por ? ' · por ' + esc(e.por) : ''}${e.obs ? ' · ' + esc(e.obs) : ''}</small></div>
+    <button class="x" data-del="${e.id}" aria-label="Excluir">✕</button></div>`).join('');
+  return `<div class="chips">
+      <select id="f-l"><option value="">Todos os lotes</option>${S.lotes.map(l => `<option value="${l.id}" ${F.lote===l.id?'selected':''}>${esc(l.nome)}</option>`).join('')}</select>
+      <select id="f-t"><option value="">Todos os tipos</option>${Object.entries(EV).map(([k,e]) => `<option value="${k}" ${F.tipo===k?'selected':''}>${e.n}</option>`).join('')}</select>
+    </div>
+    <div class="card">${itens || '<div class="empty">Nenhum lançamento.</div>'}${lista.length > 300 ? '<p class="hint">Mostrando os 300 mais recentes. Use os filtros ou exporte.</p>' : ''}</div>
+    <button class="btn sec" id="exp">Exportar para Excel</button>`;
+}
+function ligarHist(){
+  $('#f-l').onchange = e => { S.filtro.lote = e.target.value; render(); };
+  $('#f-t').onchange = e => { S.filtro.tipo = e.target.value; render(); };
+  document.querySelectorAll('[data-del]').forEach(b => b.onclick = async () => {
+    const e = S.lanc.find(x => x.id === b.dataset.del); if (!e) return;
+    if (await confirmar(`Excluir ${EV[e.tipo]?.n} de ${fmtD(e.data)}?`)) Store.remove('lancamentos', e.id);
+  });
+  $('#exp').onclick = exportar;
+}
+function exportar(){
+  if (!window.XLSX) return toast('Biblioteca de Excel não carregou. Verifique a internet.');
+  const lanc = ordenar(S.lanc).map(e => ({
+    Data: fmtD(e.data), Tipo: EV[e.tipo]?.n, Lote: e.tipo === 'chuva' ? '' : nomeLote(e.loteId),
+    Categoria: e.cat ? CATS[e.cat] : '', Quantidade: e.qtd ?? '',
+    Machos: e.machos ?? '', Femeas: e.femeas ?? '', Natimortos: e.mortos ?? '', 'Mães novilhas': e.primiparas ?? '', Brincos: e.brincos || '',
+    Prenhas: e.prenhes ?? '', Vazias: e.vazias ?? '',
+    'Peso médio kg': e.peso ?? '', 'Lote destino': e.loteDestino ? nomeLote(e.loteDestino) : '',
+    'Categoria destino': e.catDestino ? CATS[e.catDestino] : '', 'Causa/Motivo': e.causa || e.motivo || '',
+    Protocolo: e.tipo === 'sanitario' ? (protPor(e.protId)?.nome || e.protNome || '') : '', Produto: e.produto || '',
+    'Tipo de gasto': e.tipo === 'gasto' ? (GASTOS[e.gcat]?.n || e.gcat) : '', 'Valor R$': e.valor ?? '', 'Valor por cabeça R$': e.valorCab ?? '', Unidade: e.unid || '',
+    'Chuva mm': e.mm ?? '', 'Anotado por': e.por || '', Tarefa: e.tarefaNome || '', Problema: e.problema ? 'sim' : '', Contagem: e.tipo === 'contagem' ? Object.entries(e.contagens||{}).map(([c,n]) => `${n} ${CATS_C[c]}`).join(', ') : '', Obs: e.obs || ''
+  }));
+  const sal = saldos();
+  const lotes = S.lotes.map(l => ({Lote:l.nome, Tipo:TIPOS_LOTE[l.tipo]||'', Pasto:pastoPor(l.pastoId)?.nome||'', ...Object.fromEntries(CAT_K.map(c => [CATS[c], sal[l.id]?.[c] || 0]))}));
+  const pastos = lotacao(sal).map(x => ({Pasto:x.p.nome, 'Área ha':x.area || '', 'Capacidade UA/ha':x.cap, Cabeças:x.cab, UA:+x.ua.toFixed(2), 'UA/ha':x.uaha != null ? +x.uaha.toFixed(2) : '', Lotes:x.lotes.map(l => l.nome).join(', ')}));
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lanc), 'Lançamentos');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(lotes), 'Saldo por lote');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(pastos), 'Pastos');
+  if (S.benf.length) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(S.benf.map(b => { const g = parseGeo(b.geo); return {Tipo:BENF[b.tipo]?.n || b.tipo, Nome:b.nome || '', Metros:b.metros || '', Fios:b.fios || '', Arame:b.arame || '', 'Metros de arame':N(b.metros)*N(b.fios) || '', Latitude:g?.type === 'Point' ? g.coordinates[1] : '', Longitude:g?.type === 'Point' ? g.coordinates[0] : '', Obs:b.obs || ''}; })), 'Benfeitorias');
+  XLSX.writeFile(wb, `manejo_cria_${hoje()}.xlsx`);
+}
+
+/* ---------- cadastros ---------- */
+function vCad(){
+  const c = cfg();
+  const pastos = [...S.pastos].sort((a,b) => a.nome.localeCompare(b.nome));
+  const lotes = [...S.lotes].sort((a,b) => (a.ativo===false) - (b.ativo===false) || a.nome.localeCompare(b.nome));
+  const sal = saldos();
+  return `
+  <div class="sec-t">Pastos (${pastos.length})</div>
+  <div class="card">${pastos.map(p => {
+      const nl = S.lotes.filter(l => l.pastoId === p.id && l.ativo !== false).map(l => l.nome);
+      return `<div class="item"><div class="ic" style="background:#e7efe6">🌿</div><div class="tx"><b>${esc(p.nome)}${p.geo ? ' <span class="tag">no mapa</span>' : ''}</b><small>${p.area ? fmtN(p.area,1) + ' ha · ' : 'sem área · '}${p.cap ? 'cap. ' + fmtN(p.cap,1) + ' UA/ha · ' : ''}${nl.length ? 'Lotes: ' + esc(nl.join(', ')) : 'vazio'}</small></div><button class="x lnk" data-pe="${p.id}" style="color:var(--mute);font-size:14px">Editar</button></div>`;
+    }).join('') || '<div class="empty">Nenhum pasto cadastrado.</div>'}
+    <form id="fp" style="margin-top:10px"><div class="row2"><input type="text" name="nome" placeholder="Nome do pasto" required><input type="number" inputmode="decimal" step="any" name="area" placeholder="Área ha (opcional)"></div>
+    <button class="btn sm in" style="margin-top:8px">+ Adicionar pasto</button></form>
+    <p class="hint">A área também pode vir do desenho no Mapa.</p></div>
+
+  <div class="sec-t">Lotes (${lotes.filter(l => l.ativo !== false).length})</div>
+  <div class="card">${lotes.map(l => {
+      const cs = sal[l.id] || {}, tot = CAT_K.reduce((s,x) => s + (cs[x]||0), 0);
+      return `<div class="item" style="${l.ativo===false?'opacity:.5':''}"><div class="ic" style="background:#f3ebe0">🐄</div><div class="tx">
+        <b>${esc(l.nome)} <span class="tag">${esc(TIPOS_LOTE[l.tipo]||'')}</span></b><small>${fmtN(tot)} animais${l.ativo===false?' · inativo':''}</small>
+        <select data-lp="${l.id}" style="margin-top:6px;padding:8px;font-size:14px"><option value="">Sem pasto</option>${pastos.map(p => `<option value="${p.id}" ${p.id===l.pastoId?'selected':''}>${esc(p.nome)}</option>`).join('')}</select>
+      </div><button class="x" data-la="${l.id}" title="${l.ativo===false?'Reativar':'Desativar'}">${l.ativo===false?'↺':'✕'}</button></div>`;
+    }).join('') || '<div class="empty">Nenhum lote cadastrado.</div>'}
+    <form id="fl" style="margin-top:10px">
+      <input type="text" name="nome" placeholder="Nome do lote (ex.: Vacas Paridas)" required style="margin-bottom:8px">
+      <div class="row2"><select name="tipo">${Object.entries(TIPOS_LOTE).map(([k,t]) => `<option value="${k}">${t}</option>`).join('')}</select>
+      <select name="pastoId"><option value="">Pasto…</option>${pastos.map(p => `<option value="${p.id}">${esc(p.nome)}</option>`).join('')}</select></div>
+      <button class="btn sm in" style="margin-top:8px">+ Adicionar lote</button></form>
+    <p class="hint">Trocar o pasto aqui é a "mudança de pasto" do lote. Tipo <b>Monta</b> = lote onde vacas e touros ficam juntos; é ele que entra no cálculo de natalidade.</p></div>
+
+  <div class="sec-t">Tarefas do vaqueiro (${S.tarefas.length})</div>
+  <div class="card">${[...S.tarefas].sort((a,b) => a.nome.localeCompare(b.nome)).map(t => `<div class="item"><div class="ic" style="background:#e7efe6">✅</div><div class="tx"><b>${esc(t.nome)}</b>
+      <select data-tf="${t.id}" style="margin-top:6px;padding:8px;font-size:14px">${Object.entries(FREQS).map(([k,v]) => `<option value="${k}" ${+k === +t.freq ? 'selected' : ''}>${v}</option>`).join('')}</select></div>
+      <button class="x" data-td="${t.id}">✕</button></div>`).join('') || '<div class="empty">Nenhuma tarefa cadastrada.</div>'}
+    <form id="ft" style="margin-top:10px"><input type="text" name="nome" placeholder="Nova tarefa (ex.: Conferir bebedouro da represa)" required style="margin-bottom:8px">
+      <div class="row2"><select name="freq">${Object.entries(FREQS).map(([k,v]) => `<option value="${k}">${v}</option>`).join('')}</select><button class="btn sm">+ Adicionar</button></div></form>
+    ${TAREFAS_SUG.some(x => !S.tarefas.some(t => t.nome === x.nome)) ? `<button class="btn sec sm" id="t-sug" style="margin-top:10px">Adicionar sugestões: ${TAREFAS_SUG.filter(x => !S.tarefas.some(t => t.nome === x.nome)).map(x => esc(x.nome.toLowerCase())).join(', ')}</button>` : ''}
+    <p class="hint">As tarefas aparecem no topo da tela Lançar, pro vaqueiro dar baixa.</p></div>
+
+  <div class="sec-t">Fazenda e referências</div>
+  <div class="card"><form id="fc">
+    <label class="f"><span>Nome da fazenda</span><input type="text" name="nome" value="${esc(S.config.nome||'')}" placeholder="ex.: Fazenda Boa Vista"></label>
+    <label class="f"><span>Como chamar o dono na tela inicial</span><input type="text" name="dono" value="${esc(S.config.dono||'')}" placeholder="ex.: Seu Antônio"></label>
+    <div class="row2"><label class="f"><span>Capacidade padrão (UA/ha)</span><input type="number" inputmode="decimal" step="any" name="uaHa" value="${esc(c.uaHa)}"></label>
+    <label class="f"><span>Peso do saco de sal (kg)</span><input type="number" inputmode="decimal" step="any" name="kgSaco" value="${esc(c.kgSaco)}"></label></div>
+    <p class="hint" style="margin:-6px 0 10px">Capacidade padrão vale para os pastos sem capacidade própria. Sem um número seu, o app usa 1 UA/ha: ajuste com a realidade dos seus pastos.</p>
+    <span class="muted">Unidade animal por categoria (UA)</span>
+    <div class="row2" style="margin-top:6px">${CAT_K.map(k => `<label class="f"><span>${CATS[k]}</span><input type="number" inputmode="decimal" step="any" name="ua_${k}" value="${esc(c.ua[k])}"></label>`).join('')}</div>
+    <button class="btn sm in">Salvar</button></form>
+    ${MODO_TESTE ? `<button class="btn del" id="zerar" style="margin-top:16px">Apagar dados de teste</button>` : `<p class="muted" style="margin:16px 0 6px">Entrou como <b>${esc(usuarioAtual())}</b></p><button class="btn sec" id="sair">Sair</button>`}
+  </div>`;
+}
+function ligarCad(){
+  $('#fp').onsubmit = ev => { ev.preventDefault(); const v = Object.fromEntries(new FormData(ev.target)); if (!v.nome.trim()) return;
+    Store.add('pastos', {nome:v.nome.trim(), area:N(v.area)||null, criadoEm:Date.now()}); toast('Pasto adicionado'); };
+  $('#fl').onsubmit = ev => { ev.preventDefault(); const v = Object.fromEntries(new FormData(ev.target)); if (!v.nome.trim()) return;
+    Store.add('lotes', {nome:v.nome.trim(), tipo:v.tipo, pastoId:v.pastoId||null, ativo:true, criadoEm:Date.now()}); toast('Lote adicionado'); };
+  $('#fc').onsubmit = ev => { ev.preventDefault(); const fd = new FormData(ev.target);
+    Store.setConfig({nome:(fd.get('nome')||'').trim(), dono:(fd.get('dono')||'').trim(), uaHa:N(fd.get('uaHa'))||1, kgSaco:N(fd.get('kgSaco'))||25, ua:Object.fromEntries(CAT_K.map(k => [k, N(fd.get('ua_'+k))]))});
+    toast('Salvo'); };
+  document.querySelectorAll('[data-lp]').forEach(s => s.onchange = () => { Store.update('lotes', s.dataset.lp, {pastoId: s.value || null}); toast('Pasto do lote atualizado'); });
+  document.querySelectorAll('[data-la]').forEach(b => b.onclick = async () => {
+    const l = lotePor(b.dataset.la); if (!l) return;
+    if (l.ativo === false){ Store.update('lotes', l.id, {ativo:true}); return; }
+    if (await confirmar(`Desativar o lote ${l.nome}? O histórico continua guardado.`, 'Desativar')) Store.update('lotes', l.id, {ativo:false});
+  });
+  document.querySelectorAll('[data-pe]').forEach(b => b.onclick = () => {
+    const p = pastoPor(b.dataset.pe); if (!p) return;
+    modalForm('Editar pasto', `<label class="f"><span>Nome</span><input type="text" name="nome" value="${esc(p.nome)}"></label>
+      <div class="row2"><label class="f"><span>Área (ha)</span><input type="number" inputmode="decimal" step="any" name="area" value="${esc(p.area ?? '')}"></label>
+      <label class="f"><span>Capacidade (UA/ha)</span><input type="number" inputmode="decimal" step="any" name="cap" value="${esc(p.cap ?? '')}" placeholder="padrão"></label></div>
+      <button type="button" class="btn del sm" id="pdel">Excluir pasto</button>`,
+      fd => { const nome = (fd.get('nome')||'').trim(); if (!nome) return false; Store.update('pastos', p.id, {nome, area:N(fd.get('area'))||null, cap:N(fd.get('cap'))||null}); },
+      'Salvar', fm => { fm.querySelector('#pdel').onclick = async () => {
+        fm.closest('.modal').remove();
+        if (S.lotes.some(l => l.pastoId === p.id && l.ativo !== false)) return toast('Tire os lotes deste pasto antes de excluir.');
+        if (await confirmar(`Excluir o pasto ${p.nome}?`)) Store.remove('pastos', p.id);
+      }; });
+  });
+  $('#ft').onsubmit = ev => { ev.preventDefault(); const fd = new FormData(ev.target), nome = (fd.get('nome')||'').trim(); if (!nome) return;
+    Store.add('tarefas', {nome, freq:N(fd.get('freq')) || 1, ativo:true, criadoEm:Date.now()}); toast('Tarefa adicionada'); };
+  $('#t-sug') && ($('#t-sug').onclick = () => { for (const x of TAREFAS_SUG) if (!S.tarefas.some(t => t.nome === x.nome)) Store.add('tarefas', {...x, ativo:true, criadoEm:Date.now()}); toast('Tarefas sugeridas adicionadas'); });
+  document.querySelectorAll('[data-tf]').forEach(s => s.onchange = () => { Store.update('tarefas', s.dataset.tf, {freq:N(s.value)}); toast('Frequência atualizada'); });
+  document.querySelectorAll('[data-td]').forEach(b => b.onclick = async () => { const t = S.tarefas.find(x => x.id === b.dataset.td); if (t && await confirmar(`Excluir a tarefa ${t.nome}? As baixas já feitas continuam no histórico.`)) Store.remove('tarefas', t.id); });
+  $('#sair') && ($('#sair').onclick = () => Store.au.signOut(Store.auth));
+  $('#zerar') && ($('#zerar').onclick = async () => {
+    if (!await confirmar('Apagar todos os dados de teste deste aparelho?', 'Apagar')) return;
+    ['pastos','lotes','lancamentos','protocolos','benfeitorias','tarefas','config'].forEach(c => { try { localStorage.removeItem('manejo_cria_' + c); } catch(e){} });
+    location.reload();
+  });
+}
+
+/* ---------- inicialização ---------- */
+(async () => {
+  render();
+  if (MODO_TESTE){ Store = LocalStore(); assinar(); carregarClima(); setTimeout(checarPremios, 1500); return; }
+  try {
+    Store = await FireStore();
+    Store.au.onAuthStateChanged(Store.auth, u => {
+      S.user = u;
+      if (u){ assinar(); carregarClima(); setTimeout(checarPremios, 2500); }
+      else { Store.stop(); S.pronto = false; S.pastos = []; S.lotes = []; S.lanc = []; S.protocolos = []; S.benf = []; S.tarefas = []; S.config = {}; render(); }
+    });
+  } catch(e){
+    $('#app').innerHTML = `<div class="login"><h1>Erro</h1><p class="muted">Não foi possível conectar ao Firebase. Verifique a internet e o firebaseConfig.</p><p class="warn">${esc(e.message)}</p></div>`;
+  }
+})();
+</script>
+</body>
+</html>
